@@ -1,0 +1,744 @@
+// SupplyLens OMS prototype schema.
+// Money is stored as integer pence, weight as integer grams — SQLite has no
+// Decimal support in Prisma, and integer maths keeps cost allocation exact.
+// "Enums" are strings + TS union types (SQLite has no native enums).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Supplier {
+  id           String   @id @default(cuid())
+  name         String
+  code         String   @unique
+  country      String
+  contactEmail String?
+  leadTimeDays Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  returns        SupplierReturn[]
+}
+
+model ProductFamily {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  products Product[]
+}
+
+// Merchandising taxonomy — where a product sits in the range (flat, no tree).
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  products Product[]
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id            String  @id @default(cuid())
+  sku           String  @unique
+  name          String
+  barcode       String? @unique // EAN/GTIN — retailers order by this, not by SKU
+  weightGrams   Int     @default(0)
+  baseCostPence Int     @default(0)
+  sellPricePence Int    @default(0)
+  type          String  @default("STANDARD") // "STANDARD" | "BUNDLE"
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  familyId      String?
+  family        ProductFamily? @relation(fields: [familyId], references: [id])
+  variant       String? // e.g. "Grey", "75 cm" — the label within the family
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+  brandId       String?
+  brand         Brand? @relation(fields: [brandId], references: [id])
+  imageUrl      String? // "/product-images/<sku>.<ext>" under public/
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  bomLines      BomLine[] @relation("bundle")
+  usedIn        BomLine[] @relation("component")
+  poLines       PurchaseOrderLine[]
+  stockLevels   StockLevel[]
+  salesLines    SalesOrderLine[]
+  creditLines   CreditNoteLine[]
+  movements     StockMovement[]
+  supplierReturnLines SupplierReturnLine[]
+  reservations  StockReservation[]
+  uoms          ProductUom[]
+  adjustmentLines StockAdjustmentLine[]
+  transferLines   WarehouseTransferLine[]
+}
+
+// Alternate selling units — pack/case configurations. GS1-style: an outer
+// (case of 6) is its own orderable unit with its own barcode. Stock stays in
+// the base unit (eaches); order lines transact in whichever unit was sold.
+model ProductUom {
+  id          String  @id @default(cuid())
+  productId   String
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code        String // "PACK6", "CASE24"
+  name        String // "Pack of 6"
+  unitsPerUom Int // base units per one of these
+  barcode     String? @unique // the outer/case GTIN
+
+  @@unique([productId, code])
+}
+
+model BomLine {
+  id          String  @id @default(cuid())
+  bundleId    String
+  bundle      Product @relation("bundle", fields: [bundleId], references: [id])
+  componentId String
+  component   Product @relation("component", fields: [componentId], references: [id])
+  quantity    Int
+
+  @@unique([bundleId, componentId])
+}
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  reference    String    @unique
+  supplierId   String
+  supplier     Supplier  @relation(fields: [supplierId], references: [id])
+  status       String    @default("DRAFT") // "DRAFT" | "PLACED" | "RECEIVED"
+  containerRef String?
+  currency     String    @default("GBP")
+  expectedDate DateTime?
+  placedAt     DateTime?
+  receivedAt   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  lines        PurchaseOrderLine[]
+  costInvoices CostInvoicePurchaseOrder[]
+  reservations StockReservation[]
+}
+
+model PurchaseOrderLine {
+  id            String        @id @default(cuid())
+  poId          String
+  purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id])
+  quantity      Int
+  unitCostPence Int
+
+  allocations CostAllocation[]
+}
+
+model CostInvoice {
+  id               String   @id @default(cuid())
+  reference        String   @unique
+  vendor           String
+  type             String   // "FREIGHT" | "DUTY" | "INSURANCE" | "HANDLING" | "OTHER"
+  amountPence      Int
+  allocationMethod String   // "VALUE" | "QUANTITY" | "WEIGHT"
+  invoiceDate      DateTime @default(now())
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  purchaseOrders CostInvoicePurchaseOrder[]
+  allocations    CostAllocation[]
+}
+
+model CostInvoicePurchaseOrder {
+  costInvoiceId   String
+  costInvoice     CostInvoice   @relation(fields: [costInvoiceId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  @@id([costInvoiceId, purchaseOrderId])
+}
+
+model CostAllocation {
+  id            String            @id @default(cuid())
+  costInvoiceId String
+  costInvoice   CostInvoice       @relation(fields: [costInvoiceId], references: [id], onDelete: Cascade)
+  poLineId      String
+  poLine        PurchaseOrderLine @relation(fields: [poLineId], references: [id], onDelete: Cascade)
+  amountPence   Int
+
+  @@unique([costInvoiceId, poLineId])
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isDefault Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  stockLevels StockLevel[]
+  salesOrders SalesOrder[]
+  customers   Customer[]
+  creditNotes CreditNote[]
+  adjustments   StockAdjustment[]
+  transfersFrom WarehouseTransfer[] @relation("transferFrom")
+  transfersTo   WarehouseTransfer[] @relation("transferTo")
+  movements   StockMovement[]
+  customerReturns CustomerReturn[]
+  supplierReturns SupplierReturn[]
+  reservations    StockReservation[]
+}
+
+// Append-only stock ledger — every event that changes stock writes a row here
+// IN THE SAME TRANSACTION as the change. Signed quantity, the document that
+// caused it, and the running warehouse balance after the event.
+model StockMovement {
+  id           String    @id @default(cuid())
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity     Int // signed: + into stock, − out of stock
+  balanceAfter Int // warehouse balance for this product after the event
+  type         String // "OPENING" | "PO_RECEIPT" | "DESPATCH" | "CREDIT_RESTOCK" | "ADJUSTMENT"
+  reference    String // document reference: "PO-0001", "DSP-0004", "CRN-0002"
+  referenceId  String? // routable id (purchase order / sales order) for linking
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model StockLevel {
+  id                    String    @id @default(cuid())
+  productId             String
+  product               Product   @relation(fields: [productId], references: [id])
+  warehouseId           String
+  warehouse             Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity              Int       @default(0)
+  openingQuantity       Int       @default(0)
+  openingUnitCostPence  Int       @default(0)
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  @@unique([productId, warehouseId])
+}
+
+// A stock reservation ring-fences quantity outside any order — the pre-order
+// "secure it" mechanism. Reserved stock is excluded from Available (and from
+// channel feeds) and blocks despatches; if held FOR a customer, that customer's
+// despatches may consume it.
+model StockReservation {
+  id          String    @id @default(cuid())
+  reference   String    @unique // "RSV-0001"
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Int // remaining reserved quantity (decrements as consumed)
+  customerId  String? // held for this customer — their despatches consume it
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  // Awaiting an inbound PO: the hold is PENDING (not counted in availability)
+  // until the PO is received, then activates IN THE SAME TRANSACTION as the
+  // receipt — no window where channels can see the stock.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  // Back-order cover: the sales order this hold exists FOR. Gives the SO ⇄ PO
+  // link both pages render — the order shows its covering PO, the PO shows
+  // the orders waiting on it.
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation("coverFor", fields: [salesOrderId], references: [id])
+  reason      String?
+  status      String    @default("ACTIVE") // "PENDING" | "ACTIVE" | "RELEASED"
+  expiresAt   DateTime? // treated as inactive after this date
+  createdAt   DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  releasedAt  DateTime?
+}
+
+// A customer's named delivery points. `code` is the API sync key: an inbound
+// order carrying { location: "AVONMOUTH-DC3" } resolves to this record and the
+// address snapshots onto the order.
+model CustomerLocation {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code       String // sync key, unique per customer
+  name       String // "Avonmouth DC 3"
+  address    String
+  contact    String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  salesOrders SalesOrder[]
+
+  @@unique([customerId, code])
+}
+
+// Stock adjustment — the stocktake/damage/shrinkage document. Applied the
+// moment it's created: levels move and the ledger records ADJUSTMENT lines,
+// so every correction has a who-cares-why reason attached forever.
+model StockAdjustment {
+  id          String    @id @default(cuid())
+  reference   String    @unique // ADJ-0001
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  reason      String // "Stocktake variance", "Damaged in racking"…
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  lines StockAdjustmentLine[]
+}
+
+model StockAdjustmentLine {
+  id           String          @id @default(cuid())
+  adjustmentId String
+  adjustment   StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product         @relation(fields: [productId], references: [id])
+  quantityDelta Int // signed: + found, − lost/damaged
+}
+
+// Warehouse transfer — moves stock between warehouses in one transaction:
+// TRANSFER out at source, TRANSFER in at destination, same reference.
+model WarehouseTransfer {
+  id              String    @id @default(cuid())
+  reference       String    @unique // TRF-0001
+  fromWarehouseId String
+  fromWarehouse   Warehouse @relation("transferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouseId   String
+  toWarehouse     Warehouse @relation("transferTo", fields: [toWarehouseId], references: [id])
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  lines WarehouseTransferLine[]
+}
+
+model WarehouseTransferLine {
+  id         String            @id @default(cuid())
+  transferId String
+  transfer   WarehouseTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product           @relation(fields: [productId], references: [id])
+  quantity   Int
+}
+
+// Stock journal — the accounting shadow of a stock event (Steve: "the despatch
+// AND the stock journal"). Not a UI document: an outbox an accounting
+// integration drains — GET the PENDING ones, post to Xero, acknowledge.
+// Values are average landed cost, so the books see what stock really cost.
+model StockJournal {
+  id         String    @id @default(cuid())
+  reference  String    @unique // "SJ-0001"
+  type       String // "DESPATCH_COGS" | "PO_RECEIPT" | "RETURN_RESTOCK" | "CREDIT_RESTOCK" | "ADJUSTMENT"
+  sourceRef  String // the document that caused it: DSP-0003, PO-0001, RMA-0001, CRN-0002, ADJ-0001
+  sourceId   String?
+  memo       String
+  totalPence Int // journal value (debits == credits == this)
+  status     String    @default("PENDING") // "PENDING" | "POSTED"
+  postedAt   DateTime?
+  externalRef String? // the accounting system's id once posted
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  lines StockJournalLine[]
+}
+
+model StockJournalLine {
+  id          String       @id @default(cuid())
+  journalId   String
+  journal     StockJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account     String // "Cost of Goods Sold", "Stock on Hand", "Goods Received Not Invoiced", "Stock Adjustments"
+  debitPence  Int          @default(0)
+  creditPence Int          @default(0)
+  description String?
+}
+
+// ── Identity: organisation → users via memberships ──────────────────────────
+// Phase 1 of multi-tenancy: who you are and which company you belong to.
+// Phase 2 (roadmap) scopes every data table by orgId; Phase 3 swaps this
+// credential layer for Supabase Auth at deployment — the org/membership
+// model is designed to survive that swap unchanged.
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  vatNumber String?
+  address   String? // multi-line; will print on documents
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  memberships Membership[]
+  invitations Invitation[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String // scrypt salt:hash — replaced by Supabase Auth in production
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  memberships Membership[]
+  sessions    Session[]
+  invitations Invitation[] @relation("invitedBy")
+}
+
+model Membership {
+  id     String       @id @default(cuid())
+  orgId  String
+  org    Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   String // "OWNER" | "ADMIN" | "MEMBER"
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, userId])
+}
+
+model Invitation {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email       String
+  role        String // role granted on acceptance
+  token       String       @unique
+  invitedById String
+  invitedBy   User         @relation("invitedBy", fields: [invitedById], references: [id])
+  createdAt   DateTime     @default(now())
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  @@unique([orgId, email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+// API tokens — machine credentials for integrations. The token itself is
+// shown ONCE at creation; only its SHA-256 lives here. Revocation is a
+// timestamp so the audit trail keeps who-had-access history.
+model ApiToken {
+  id          String    @id @default(cuid())
+  name        String // "Mintsoft sync", "EDI gateway"
+  prefix      String // first chars, for display: oms_ab12…
+  tokenHash   String    @unique
+  createdById String?
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+}
+
+// App settings — a plain key/value store. Typed access + defaults live in
+// src/lib/settings.ts; nothing reads this table directly.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model SalesPerson {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  customers   Customer[]
+  salesOrders SalesOrder[]
+}
+
+model Customer {
+  id                   String       @id @default(cuid())
+  name                 String
+  code                 String       @unique
+  email                String?
+  phone                String?
+  deliveryAddress      String? // multi-line; pre-fills new sales orders
+  paymentTermsDays     Int          @default(30)
+  notes                String?
+  defaultSalesPersonId String?
+  defaultSalesPerson   SalesPerson? @relation(fields: [defaultSalesPersonId], references: [id])
+  defaultWarehouseId   String?
+  defaultWarehouse     Warehouse?   @relation(fields: [defaultWarehouseId], references: [id])
+  createdAt            DateTime     @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  salesOrders  SalesOrder[]
+  locations    CustomerLocation[]
+  reservations StockReservation[]
+}
+
+model SalesOrder {
+  id            String      @id @default(cuid())
+  reference     String      @unique
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  salesPersonId String
+  salesPerson   SalesPerson @relation(fields: [salesPersonId], references: [id])
+  warehouseId   String
+  warehouse     Warehouse   @relation(fields: [warehouseId], references: [id])
+  // Where the order came from: a channel (set by the integration sync in a real
+  // deployment, picked manually in the prototype) or null = manual/wholesale.
+  channelId     String?
+  channel       Channel?    @relation(fields: [channelId], references: [id])
+  status        String      @default("DRAFT") // "DRAFT" | "OPEN" | "INVOICED"
+  // Xero-style: line prices are entered EXCLUSIVE of VAT (added on top),
+  // INCLUSIVE (VAT extracted from the price), or NONE (zero-rated/no VAT).
+  taxTreatment  String      @default("EXCLUSIVE") // "EXCLUSIVE" | "INCLUSIVE" | "NONE"
+  // Pre-order: sold ahead of stock arriving. Its committed quantity secures the
+  // goods the moment they land — channels can't feed them, other orders can't
+  // despatch them.
+  isPreOrder    Boolean     @default(false)
+  orderDate     DateTime    @default(now())
+  requiredDate  DateTime?
+  dispatchedAt  DateTime?
+  // References
+  customerPoNumber String? // the buyer's own PO number — wholesale invoices need it
+  externalRef      String? // the channel's order id (e.g. Mirakl order number)
+  // Delivery
+  deliveryLocationId   String?
+  deliveryLocation     CustomerLocation? @relation(fields: [deliveryLocationId], references: [id])
+  deliveryAddress      String? // snapshot of the location at order time, editable per order
+  deliveryContact      String? // name / phone at the delivery point
+  shippingService      String? // requested service — each despatch carries its own
+  shippingInstructions String? // "book in 48h ahead, rear dock"
+  giftMessage          String?
+  shippingPence        Int     @default(0) // carriage charged to the customer
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  despatches Despatch[]
+  coverHolds StockReservation[] @relation("coverFor")
+
+  lines       SalesOrderLine[]
+  invoice     Invoice?
+  creditNotes CreditNote[]
+  customerReturns CustomerReturn[]
+  amendments  OrderAmendment[]
+}
+
+// An order amendment: who changed what, from → to, and why. The scoping-doc
+// requirement — original values are never lost, every change is explainable.
+model OrderAmendment {
+  id           String     @id @default(cuid())
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  sku          String
+  field        String // "quantity" | "line-added" | "line-cancelled"
+  oldValue     String
+  newValue     String
+  reason       String
+  source       String     @default("UI") // "UI" | "API"
+  createdAt    DateTime   @default(now())
+}
+
+model SalesOrderLine {
+  id             String     @id @default(cuid())
+  orderId        String
+  salesOrder     SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product    @relation(fields: [productId], references: [id])
+  // originalQty = what the customer asked for, preserved forever.
+  // quantity    = the confirmed quantity (defaults to original; amended pre-release).
+  originalQty    Int        @default(0)
+  quantity       Int // in the ordered unit (uomCode); base qty = quantity × unitsPerUom
+  uomCode        String? // null = each
+  unitsPerUom    Int        @default(1) // conversion snapshot at order time
+  unitPricePence Int
+  discountPct    Float      @default(0) // 0–100; line net = qty × price × (1 − pct/100)
+  // Weighted snapshot of average landed cost across despatches (fractional pence).
+  unitCogsPence  Float?
+
+  despatchLines DespatchLine[]
+  returnLines   CustomerReturnLine[]
+}
+
+// The operational fulfilment document (NetSuite item-fulfilment style).
+// The sales order is the commercial agreement; a despatch is one physical
+// shipment against it: Picking → Picked → Despatched. Stock moves and COGS
+// snapshots happen when a despatch goes out, not on the order itself.
+model Despatch {
+  id           String     @id @default(cuid())
+  reference    String     @unique // "DSP-0001"
+  externalRef  String? // the WMS/3PL's own shipment id — idempotency key for API confirmations
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+  status       String     @default("PICKING") // "PICKING" | "PICKED" | "DESPATCHED"
+  shippingService String?
+  trackingNumber  String?
+  createdAt    DateTime   @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  pickedAt     DateTime?
+  despatchedAt DateTime?
+
+  lines DespatchLine[]
+}
+
+model DespatchLine {
+  id            String         @id @default(cuid())
+  despatchId    String
+  despatch      Despatch       @relation(fields: [despatchId], references: [id], onDelete: Cascade)
+  orderLineId   String
+  orderLine     SalesOrderLine @relation(fields: [orderLineId], references: [id])
+  quantity      Int // planned for this despatch
+  pickedQty     Int @default(0)
+  despatchedQty Int @default(0)
+  unitCogsPence Float? // landed-cost snapshot at despatch
+}
+
+model Invoice {
+  id           String     @id @default(cuid())
+  number       String     @unique
+  salesOrderId String     @unique
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+  invoiceDate  DateTime   @default(now())
+  dueDate      DateTime? // invoiceDate + customer payment terms
+  paidAt       DateTime? // set when payment lands (manually or via accounting sync)
+  netPence     Int
+  vatPence     Int
+  grossPence   Int
+  updatedAt    DateTime   @default(now()) @updatedAt
+}
+
+// Customer return (RMA) — the operational inbound document, mirror of a
+// Despatch. Booked while goods travel back; on receipt each line is triaged
+// into restock (back into stock, COGS reverses) vs write-off (binned).
+// Receiving auto-raises the financial credit note.
+model CustomerReturn {
+  id           String     @id @default(cuid())
+  reference    String     @unique // "RMA-0001"
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse  @relation(fields: [warehouseId], references: [id])
+  status       String     @default("AWAITING") // "AWAITING" | "RECEIVED"
+  reason       String?
+  createdAt    DateTime   @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  receivedAt   DateTime?
+  creditNoteId String?    @unique
+  creditNote   CreditNote? @relation(fields: [creditNoteId], references: [id])
+
+  lines CustomerReturnLine[]
+}
+
+model CustomerReturnLine {
+  id            String         @id @default(cuid())
+  returnId      String
+  customerReturn CustomerReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderLineId   String
+  orderLine     SalesOrderLine @relation(fields: [orderLineId], references: [id])
+  quantity      Int // expected back
+  restockQty    Int @default(0) // triaged at receipt
+  writeOffQty   Int @default(0)
+  unitCogsPence Float? // copied from the order line at receipt — reverses margin for restocked units
+}
+
+// Supplier return (RTV) — goods going back to a supplier (damaged batch,
+// overstock). Stock leaves on send; the expected supplier credit is recorded.
+model SupplierReturn {
+  id          String    @id @default(cuid())
+  reference   String    @unique // "RTV-0001"
+  supplierId  String
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  status      String    @default("DRAFT") // "DRAFT" | "SENT"
+  reason      String?
+  createdAt   DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  sentAt      DateTime?
+
+  lines SupplierReturnLine[]
+}
+
+model SupplierReturnLine {
+  id               String         @id @default(cuid())
+  supplierReturnId String
+  supplierReturn   SupplierReturn @relation(fields: [supplierReturnId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id])
+  quantity         Int
+  unitCostPence    Int // expected credit from the supplier per unit
+}
+
+model CreditNote {
+  id           String     @id @default(cuid())
+  number       String     @unique // "CRN-0001"
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+  reason       String?
+  // restock: goods returned to a warehouse — stock and COGS reverse.
+  // write-off (restock=false): refund only — revenue reverses, cost stays spent.
+  restock      Boolean    @default(false)
+  warehouseId  String?
+  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+  creditDate   DateTime   @default(now())
+  netPence     Int
+  vatPence     Int
+  grossPence   Int
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  lines CreditNoteLine[]
+  customerReturn CustomerReturn?
+}
+
+model CreditNoteLine {
+  id             String     @id @default(cuid())
+  creditNoteId   String
+  creditNote     CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product    @relation(fields: [productId], references: [id])
+  quantity       Int // in the credited line's ordered unit
+  unitsPerUom    Int        @default(1)
+  unitPricePence Int
+  // Copied from the order line's dispatch snapshot — used to reverse COGS on restock.
+  unitCogsPence  Float?
+}
+
+// A channel is the trading connection an integration represents (e.g. mirakl-tesco):
+// orders sync IN from it (SalesOrder.channelId), stock feeds flow OUT to it (rulesJson).
+// `code` is the join key to the SupplyLens integration.
+model Channel {
+  id             String   @id @default(cuid())
+  name           String
+  code           String   @unique
+  rulesJson      String   @default("[]")
+  includeBundles Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  salesOrders SalesOrder[]
+}
