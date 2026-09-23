@@ -53,8 +53,9 @@ are standard core, not add-ons.
 
 ## Later
 
-- **Deployment**, GitHub → Vercel + Supabase Postgres (Prisma provider swap,
-  product images to Supabase Storage), domain supplylens-oms.co.uk.
+- **Deployment phase 2**: product image uploads to Supabase Storage (uploads
+  currently fail on Vercel's read-only filesystem; seeded images deploy fine
+  as static assets), domain supplylens-oms.co.uk, Supabase Auth swap.
 - **Multi-currency**, currency + exchange rate on POs and sales orders,
   reporting converted to base at document rate. Needed for USD-buying pilots.
 - **CANCELLED order status**, a canonical terminal state (today: drafts
@@ -107,3 +108,5 @@ bin/zone/rack warehouse layouts (3PL territory), invoice OCR.
 | v26 | Identity Phase 1: organisations (name/VAT/address), sign-up (creates org + owner), sign-in/out, sessions, roles (owner/admin/member), invite-by-link with accept flow, gated app, Settings org & users cards |
 | v27 | API tokens (generate/revoke, shown once, SHA-256 at rest, last-used) + Integrations page: connection catalogue with Connected/Ready/Available statuses and sync keys |
 | v28 | Back orders: derived (never stored) shortfall state, "Cover shortfall" raising linked draft POs + customer-held inbound holds, SO⇄PO clickable both ways, self-clearing on any stock arrival |
+| v29 | Dark auth surface with resilient constellation; copy style sweep (Oxford punctuation, no en or em dashes, zero third-party brand names) |
+| v30 | Deployed: Postgres (Supabase shared pooler) everywhere including local dev, fresh init migration, pg adapter, build runs generate + migrate + next build, repo pushed to GitHub, Vercel wired |
