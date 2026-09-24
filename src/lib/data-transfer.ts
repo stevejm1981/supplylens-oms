@@ -463,6 +463,7 @@ export const ENTITIES: EntitySpec[] = [
       { name: "variant", maps: "Product.variant", notes: 'Label within the family, e.g. "Grey"' },
       { name: "categoryCode", maps: "Product.categoryId", notes: "Auto-created if new" },
       { name: "brandCode", maps: "Product.brandId", notes: "Auto-created if new" },
+      { name: "recipeMakes", maps: "Product.bomOutputQty", notes: "ASSEMBLED only: units one batch of the BOM produces (default 1)" },
     ],
     async exportRows() {
       const rows = await db.product.findMany({
@@ -482,6 +483,7 @@ export const ENTITIES: EntitySpec[] = [
         p.variant ?? "",
         p.category?.code ?? "",
         p.brand?.code ?? "",
+        p.type === "ASSEMBLED" ? String(p.bomOutputQty) : "",
       ]);
     },
     async importRows(tx, rows, errors) {
@@ -538,6 +540,11 @@ export const ENTITIES: EntitySpec[] = [
             continue;
           }
         }
+        const recipeMakes = parseIntCell(cells.recipeMakes ?? "");
+        if (recipeMakes === null || (recipeMakes !== undefined && recipeMakes < 1)) {
+          errors.push(`row ${rowNo}: recipeMakes must be a whole number of at least 1`);
+          continue;
+        }
         const familyId = await groupId("family", cells.familyCode ?? "");
         const categoryId = await groupId("category", cells.categoryCode ?? "");
         const brandId = await groupId("brand", cells.brandCode ?? "");
@@ -553,6 +560,7 @@ export const ENTITIES: EntitySpec[] = [
           variant: orSkip(cells.variant ?? ""),
           categoryId,
           brandId,
+          bomOutputQty: recipeMakes,
         };
         const found = await tx.product.findUnique({ where: { sku } });
         if (found) {
@@ -573,6 +581,7 @@ export const ENTITIES: EntitySpec[] = [
               variant: orNull(cells.variant ?? ""),
               categoryId: categoryId ?? null,
               brandId: brandId ?? null,
+              bomOutputQty: recipeMakes ?? 1,
             },
           });
           created++;

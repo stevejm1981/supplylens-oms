@@ -57,3 +57,18 @@ export function completionDeltas(
     .map((l) => ({ componentId: l.componentId, delta: l.actualQty - l.plannedQty }))
     .filter((d) => d.delta !== 0);
 }
+
+/**
+ * Component requirement for a build, honouring the BOM's batch yield:
+ * "recipeQty per outputQty produced". Rounds UP when the build is not an
+ * exact multiple of the batch, better to stage one part too many than stall
+ * the line one short.
+ */
+export function componentsForBuild(
+  recipeQty: number,
+  outputQty: number,
+  buildQty: number,
+): number {
+  if (outputQty <= 0) throw new Error("outputQty must be positive");
+  return Math.ceil((recipeQty * buildQty) / outputQty);
+}

@@ -68,6 +68,10 @@ model Product {
   baseCostPence Int     @default(0)
   sellPricePence Int    @default(0)
   type          String  @default("STANDARD") // "STANDARD" | "BUNDLE"
+  // Recipe yield for ASSEMBLED products: the BOM's component quantities
+  // produce this many units per batch ("this recipe makes 1000 bottles").
+  // Bundles and standard products stay at 1.
+  bomOutputQty  Int     @default(1)
   supplierId    String?
   supplier      Supplier? @relation(fields: [supplierId], references: [id])
   familyId      String?

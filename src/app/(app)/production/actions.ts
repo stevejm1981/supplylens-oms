@@ -6,7 +6,7 @@ import { getAvgLandedCosts } from "@/lib/queries";
 import { recordMovement } from "@/lib/stock-ledger";
 import { JOURNAL_ACCOUNTS, recordStockJournal, type JournalLineInput } from "@/lib/journals";
 import { nextRef } from "@/lib/settings";
-import { buildCost, completionDeltas } from "@/lib/engine/production";
+import { buildCost, completionDeltas, componentsForBuild } from "@/lib/engine/production";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -53,7 +53,7 @@ export async function createProductionOrder(input: {
         lines: {
           create: product.bomLines.map((bom) => ({
             componentId: bom.componentId,
-            plannedQty: bom.quantity * input.plannedQty,
+            plannedQty: componentsForBuild(bom.quantity, product.bomOutputQty, input.plannedQty),
           })),
         },
       },

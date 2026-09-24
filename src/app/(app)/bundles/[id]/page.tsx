@@ -75,6 +75,8 @@ export default async function BundlePage({
             quantity: l.quantity,
           }))}
           components={components}
+          isAssembled={bundle.type === "ASSEMBLED"}
+          initialOutputQty={bundle.bomOutputQty}
         />
 
         <Card>

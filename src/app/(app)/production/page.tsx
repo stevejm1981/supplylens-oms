@@ -65,6 +65,7 @@ export default async function ProductionPage() {
             id: p.id,
             sku: p.sku,
             name: p.name,
+            outputQty: p.bomOutputQty,
             bom: p.bomLines.map((b) => ({
               componentId: b.componentId,
               sku: b.component.sku,

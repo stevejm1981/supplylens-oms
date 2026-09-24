@@ -190,7 +190,7 @@ export default async function ProductPage({
           </CardContent>
         </Card>
 
-        {product.type === "STANDARD" ? (
+        {product.type !== "BUNDLE" ? (
           <UomsCard
             productId={product.id}
             uoms={product.uoms.map((u) => ({
@@ -203,7 +203,7 @@ export default async function ProductPage({
           />
         ) : null}
 
-        {product.type === "STANDARD" ? (
+        {product.type !== "BUNDLE" ? (
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-base">

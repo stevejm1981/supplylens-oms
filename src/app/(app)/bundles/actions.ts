@@ -13,10 +13,19 @@ export interface BomInput {
 export async function saveBom(
   bundleId: string,
   lines: BomInput[],
+  outputQty = 1,
 ): Promise<ActionResult> {
   const bundle = await db.product.findUnique({ where: { id: bundleId } });
   if (!bundle || (bundle.type !== "BUNDLE" && bundle.type !== "ASSEMBLED")) {
     return { ok: false, error: "Not a bundle" };
+  }
+  // Recipe yield: only assembled products batch; bundles are always per-unit.
+  if (bundle.type === "ASSEMBLED") {
+    if (!Number.isInteger(outputQty) || outputQty < 1) {
+      return { ok: false, error: "Recipe output must be a whole number of at least 1" };
+    }
+  } else {
+    outputQty = 1;
   }
   const cleaned = lines.filter((l) => l.componentId && l.quantity > 0);
   const ids = cleaned.map((l) => l.componentId);
@@ -41,7 +50,10 @@ export async function saveBom(
         });
       }
       // BOM edits are a modification of the bundle document itself.
-      await tx.product.update({ where: { id: bundleId }, data: { updatedAt: new Date() } });
+      await tx.product.update({
+        where: { id: bundleId },
+        data: { updatedAt: new Date(), bomOutputQty: outputQty },
+      });
     });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Save failed" };

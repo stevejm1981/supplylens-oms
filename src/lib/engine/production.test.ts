@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCost, completionDeltas } from "./production";
+import { buildCost, completionDeltas, componentsForBuild } from "./production";
 
 describe("buildCost", () => {
   it("finished unit cost = actual component value / actual produced", () => {
@@ -51,5 +51,24 @@ describe("completionDeltas", () => {
       { componentId: "a", delta: 2 },
       { componentId: "b", delta: -1 },
     ]);
+  });
+});
+
+describe("componentsForBuild (recipe yield)", () => {
+  it("classic per-unit BOM: yield 1 behaves exactly as before", () => {
+    expect(componentsForBuild(2, 1, 25)).toBe(50);
+  });
+
+  it("batch recipe: 35 tea per 1000 bottles, building 2000 uses 70", () => {
+    expect(componentsForBuild(35, 1000, 2000)).toBe(70);
+  });
+
+  it("rounds up on partial batches, never starves the build", () => {
+    // 35 per 1000, building 1500: exact is 52.5, stage 53
+    expect(componentsForBuild(35, 1000, 1500)).toBe(53);
+  });
+
+  it("refuses a zero yield", () => {
+    expect(() => componentsForBuild(1, 0, 10)).toThrow();
   });
 });

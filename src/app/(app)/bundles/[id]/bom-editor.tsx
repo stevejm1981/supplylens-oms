@@ -42,11 +42,16 @@ export function BomEditor({
   bundleId,
   initialLines,
   components,
+  isAssembled = false,
+  initialOutputQty = 1,
 }: {
   bundleId: string;
   initialLines: { componentId: string; quantity: number }[];
   components: ComponentOption[];
+  isAssembled?: boolean;
+  initialOutputQty?: number;
 }) {
+  const [outputQty, setOutputQty] = useState(String(initialOutputQty));
   const [lines, setLines] = useState<EditableBomLine[]>(
     initialLines.length > 0
       ? initialLines.map((l, i) => ({
@@ -67,6 +72,7 @@ export function BomEditor({
           componentId: l.componentId,
           quantity: Number(l.quantity) || 0,
         })),
+        isAssembled ? Number(outputQty) || 1 : 1,
       );
       if (result.ok) {
         toast.success("BOM saved");
@@ -104,6 +110,21 @@ export function BomEditor({
         </div>
       </CardHeader>
       <CardContent className="px-0">
+        {isAssembled ? (
+          <div className="mb-3 flex items-center gap-2 px-6">
+            <span className="text-sm">This recipe makes</span>
+            <Input
+              className="w-24 text-right font-semibold"
+              inputMode="numeric"
+              value={outputQty}
+              onChange={(e) => setOutputQty(e.target.value)}
+            />
+            <span className="text-sm">
+              units from the component quantities below, plan builds in
+              multiples for exact numbers.
+            </span>
+          </div>
+        ) : null}
         <Table>
           <TableHeader>
             <TableRow>

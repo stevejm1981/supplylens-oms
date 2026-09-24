@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProductCombobox } from "@/components/product-combobox";
+import { componentsForBuild } from "@/lib/engine/production";
 import {
   completeProduction,
   createProductionOrder,
@@ -39,6 +40,7 @@ export interface BuildableProduct {
   id: string;
   sku: string;
   name: string;
+  outputQty: number; // the recipe's batch yield
   bom: { componentId: string; sku: string; name: string; perUnit: number }[];
 }
 export interface WarehouseOption {
@@ -150,10 +152,19 @@ export function NewBuildDialog({
             <div className="rounded-lg border bg-muted/30 p-3">
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Will use
+                {product.outputQty > 1 ? (
+                  <span className="ml-2 normal-case tracking-normal">
+                    (recipe makes {product.outputQty}
+                    {planned % product.outputQty !== 0
+                      ? ", partial batch, parts round up"
+                      : `, ${planned / product.outputQty} batch${planned / product.outputQty === 1 ? "" : "es"}`}
+                    )
+                  </span>
+                ) : null}
               </p>
               <ul className="grid gap-1 text-sm">
                 {product.bom.map((c) => {
-                  const need = c.perUnit * planned;
+                  const need = componentsForBuild(c.perUnit, product.outputQty, planned);
                   const have = levels[`${c.componentId}|${warehouseId}`] ?? 0;
                   const ok = have >= need;
                   return (
