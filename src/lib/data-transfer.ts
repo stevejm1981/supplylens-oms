@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { parseCsv, toCsv } from "@/lib/csv";
 import { parsePoundsToPence } from "@/lib/money";
 import { recordMovement } from "@/lib/stock-ledger";
+import { JOURNAL_ACCOUNTS, recordStockJournal } from "@/lib/journals";
 import type { Prisma } from "@/generated/prisma/client";
 
 type Tx = Prisma.TransactionClient;
@@ -760,6 +761,7 @@ export const ENTITIES: EntitySpec[] = [
     },
     async importRows(tx, rows, errors) {
       let created = 0;
+      let takeOnValue = 0;
       const products = new Map(
         (await tx.product.findMany()).map((p) => [p.sku, { id: p.id, type: p.type }]),
       );
@@ -816,7 +818,22 @@ export const ENTITIES: EntitySpec[] = [
           type: "OPENING",
           reference: "IMPORT",
         });
+        takeOnValue += qty * cost;
         created++;
+      }
+      // Financials: the take-on journal, so opening value never appears from
+      // nowhere. Its counter-side maps to opening balance equity in the
+      // ledger app during cutover.
+      if (takeOnValue > 0 && errors.length === 0) {
+        await recordStockJournal(tx, {
+          type: "OPENING",
+          sourceRef: "IMPORT",
+          memo: `Opening stock take-on: ${created} lines`,
+          lines: [
+            { account: JOURNAL_ACCOUNTS.stock, debitPence: takeOnValue },
+            { account: JOURNAL_ACCOUNTS.openingBalances, creditPence: takeOnValue },
+          ],
+        });
       }
       return { created, updated: 0 };
     },

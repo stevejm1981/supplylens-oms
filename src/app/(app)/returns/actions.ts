@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { orderTotalsPence, effectiveUnitPricePence } from "@/lib/sales";
 import { recordMovement } from "@/lib/stock-ledger";
+import { getAvgLandedCosts } from "@/lib/queries";
 import { JOURNAL_ACCOUNTS, recordStockJournal } from "@/lib/journals";
 import { nextRef } from "@/lib/settings";
 
@@ -289,6 +290,7 @@ export async function sendSupplierReturn(id: string): Promise<ActionResult> {
       };
     }
   }
+  const avgCosts = await getAvgLandedCosts();
   try {
     await db.$transaction(async (tx) => {
       for (const line of rtv.lines) {
@@ -307,6 +309,25 @@ export async function sendSupplierReturn(id: string): Promise<ActionResult> {
           referenceId: null,
         });
       }
+      // Financials: goods leave the balance sheet at what they really cost
+      // (average landed); the expected supplier credit sits in Supplier
+      // Credits Due until their credit note arrives in the ledger app.
+      const stockValue = Math.round(
+        rtv.lines.reduce(
+          (s, l) => s + l.quantity * (avgCosts.get(l.productId) ?? l.unitCostPence),
+          0,
+        ),
+      );
+      await recordStockJournal(tx, {
+        type: "SUPPLIER_RETURN",
+        sourceRef: rtv.reference,
+        sourceId: rtv.id,
+        memo: `Supplier return ${rtv.reference} sent`,
+        lines: [
+          { account: JOURNAL_ACCOUNTS.supplierCredits, debitPence: stockValue },
+          { account: JOURNAL_ACCOUNTS.stock, creditPence: stockValue },
+        ],
+      });
       await tx.supplierReturn.update({
         where: { id },
         data: { status: "SENT", sentAt: new Date() },

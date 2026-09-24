@@ -70,7 +70,7 @@ export async function receivePurchaseOrder(
   if (!warehouse) return { ok: false, error: "Choose a warehouse to receive into" };
   const po = await db.purchaseOrder.findUnique({
     where: { id },
-    include: { lines: true },
+    include: { lines: { include: { allocations: true } } },
   });
   if (!po) return { ok: false, error: "Purchase order not found" };
   if (po.status !== "PLACED") {
@@ -103,7 +103,14 @@ export async function receivePurchaseOrder(
       });
       // Accounting shadow: stock onto the balance sheet at PO cost. (Landed
       // cost invoices arriving later re-price averages, not this journal.)
-      const receiptValue = po.lines.reduce((s, l) => s + l.quantity * l.unitCostPence, 0);
+      // Goods at PO cost PLUS any landed costs already allocated to these
+      // lines, so pre-receipt freight bills land on the balance sheet exactly
+      // once (post-receipt ones journal at allocation time instead).
+      const receiptValue = po.lines.reduce(
+        (s, l) =>
+          s + l.quantity * l.unitCostPence + l.allocations.reduce((x, a) => x + a.amountPence, 0),
+        0,
+      );
       await recordStockJournal(tx, {
         type: "PO_RECEIPT",
         sourceRef: po.reference,
