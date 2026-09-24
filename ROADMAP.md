@@ -23,15 +23,18 @@ are standard core, not add-ons.
    gain a lot axis; Despatch Station pick lists show "take lot / BBE"; FEFO
    pick suggestions; recall traceability ("which orders got batch X?").
    *Trigger: food & drink prospects (Equinox call). Also unlocks physical FIFO.*
-2. **Assembly builds (manufacturing)**, a build document that consumes
-   component stock and creates finished-goods stock ahead of any sale.
-   Product typing standardised: **ASSEMBLED** (holds stock, built from a BOM)
-   alongside STANDARD (component/bought-in) and BUNDLE (virtual, sell-side
-   only). Finished cost = component average-landed roll-up (a new cost
-   tranche); paired ASSEMBLY_BUILD ledger entries under one reference;
-   disassembly reverse. A completed build is a stock-in event, so it
-   auto-clears back orders and activates holds like a PO receipt. Pairs with
-   batch tracking for producers, a build creates a batch with a best-before.
+2. **Production orders (assemblies)**: a lifecycle document (BLD-xxxx),
+   agreed with Steve 2026-09-24: DRAFT (plan from BOM x planned qty, flags
+   component shortfalls) then IN PROGRESS (components leave stock into WIP,
+   the brew in the tank) then COMPLETED (record ACTUAL produced and ACTUAL
+   consumed; finished goods enter as a cost tranche at actual component value
+   at average landed / actual units, so yield and wastage land honestly in
+   finished cost). Product typing: **ASSEMBLED** (holds stock, built from a
+   BOM) alongside STANDARD and BUNDLE (virtual, unchanged). Paired ledger
+   entries under one reference; value-neutral stock journal via WIP;
+   completion is a stock-in event so back orders self-clear and holds
+   activate; with batch tracking, completion births the batch and its
+   best-before. Explicitly excluded: routings, work centres, labour, MRP.
 3. **Multi-tenant data scoping (identity Phase 2)**, `orgId` on every data
    table, every query filtered by the signed-in user's organisation, per-org
    API keys. Mechanical but wide; required before two real customers share a
