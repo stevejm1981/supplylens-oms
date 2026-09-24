@@ -15,7 +15,7 @@ export async function saveBom(
   lines: BomInput[],
 ): Promise<ActionResult> {
   const bundle = await db.product.findUnique({ where: { id: bundleId } });
-  if (!bundle || bundle.type !== "BUNDLE") {
+  if (!bundle || (bundle.type !== "BUNDLE" && bundle.type !== "ASSEMBLED")) {
     return { ok: false, error: "Not a bundle" };
   }
   const cleaned = lines.filter((l) => l.componentId && l.quantity > 0);

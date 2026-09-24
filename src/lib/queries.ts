@@ -25,11 +25,15 @@ export interface ProductTranche extends CostTranche {
  * cost invoices attached after receipt re-price history correctly.
  */
 export async function getTranchesByProduct(): Promise<Map<string, ProductTranche[]>> {
-  const [levels, receivedLines] = await Promise.all([
+  const [levels, receivedLines, completedBuilds] = await Promise.all([
     db.stockLevel.findMany({ include: { warehouse: { select: { name: true } } } }),
     db.purchaseOrderLine.findMany({
       where: { purchaseOrder: { status: "RECEIVED" } },
       include: { allocations: true, purchaseOrder: { select: { reference: true } } },
+    }),
+    db.productionOrder.findMany({
+      where: { status: "COMPLETED" },
+      include: { lines: true },
     }),
   ]);
 
@@ -55,6 +59,20 @@ export async function getTranchesByProduct(): Promise<Map<string, ProductTranche
       label: line.purchaseOrder.reference,
       quantity: line.quantity,
       unitCostPence: landedUnitCostPence(line.unitCostPence, line.quantity, allocated),
+    });
+  }
+  // Completed builds: finished goods at actual component value / actual units,
+  // so manufactured stock carries its honest rolled-up cost.
+  for (const build of completedBuilds) {
+    if (!build.actualQty || build.actualQty <= 0) continue;
+    const totalValue = build.lines.reduce(
+      (s, l) => s + (l.actualQty ?? l.plannedQty) * (l.unitCostPence ?? 0),
+      0,
+    );
+    push(build.productId, {
+      label: build.reference,
+      quantity: build.actualQty,
+      unitCostPence: totalValue / build.actualQty,
     });
   }
   return map;

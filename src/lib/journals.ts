@@ -10,7 +10,8 @@ export type StockJournalType =
   | "PO_RECEIPT"
   | "RETURN_RESTOCK"
   | "CREDIT_RESTOCK"
-  | "ADJUSTMENT";
+  | "ADJUSTMENT"
+  | "PRODUCTION";
 
 export interface JournalLineInput {
   account: string;
@@ -64,4 +65,6 @@ export const JOURNAL_ACCOUNTS = {
   cogs: "Cost of Goods Sold",
   grni: "Goods Received Not Invoiced",
   adjustments: "Stock Adjustments",
+  wip: "Work in Progress",
+  overheadAbsorbed: "Production Overhead Absorbed",
 } as const;

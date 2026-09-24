@@ -23,34 +23,22 @@ are standard core, not add-ons.
    gain a lot axis; Despatch Station pick lists show "take lot / BBE"; FEFO
    pick suggestions; recall traceability ("which orders got batch X?").
    *Trigger: food & drink prospects (Equinox call). Also unlocks physical FIFO.*
-2. **Production orders (assemblies)**: a lifecycle document (BLD-xxxx),
-   agreed with Steve 2026-09-24: DRAFT (plan from BOM x planned qty, flags
-   component shortfalls) then IN PROGRESS (components leave stock into WIP,
-   the brew in the tank) then COMPLETED (record ACTUAL produced and ACTUAL
-   consumed; finished goods enter as a cost tranche at actual component value
-   at average landed / actual units, so yield and wastage land honestly in
-   finished cost). Product typing: **ASSEMBLED** (holds stock, built from a
-   BOM) alongside STANDARD and BUNDLE (virtual, unchanged). Paired ledger
-   entries under one reference; value-neutral stock journal via WIP;
-   completion is a stock-in event so back orders self-clear and holds
-   activate; with batch tracking, completion births the batch and its
-   best-before. Explicitly excluded: routings, work centres, labour, MRP.
-3. **Multi-tenant data scoping (identity Phase 2)**, `orgId` on every data
+2. **Multi-tenant data scoping (identity Phase 2)**, `orgId` on every data
    table, every query filtered by the signed-in user's organisation, per-org
    API keys. Mechanical but wide; required before two real customers share a
    database. (Phase 3 at deploy: Supabase Auth swap + row-level security.)
-4. **Webhooks / outbound events**, order created, despatched, stock changed,
+3. **Webhooks / outbound events**, order created, despatched, stock changed,
    feed changed, journal pending → pushed to subscriber URLs so SupplyLens
    flows trigger instantly instead of polling `updatedSince`.
-5. **Integration sync health**, on the Integrations page (gallery + tokens
+4. **Integration sync health**, on the Integrations page (gallery + tokens
    shipped v27): per-connection last order in, last feed pull, last despatch
    confirmation, error counts. Makes "side by side" visible to the customer.
-6. **API pagination**, cursor/limit on all registers. Platform citizenship
+5. **API pagination**, cursor/limit on all registers. Platform citizenship
    before any real connector runs at volume.
-7. **Order promising (ATP-lite)**, promise dates at order entry and via API:
+6. **Order promising (ATP-lite)**, promise dates at order entry and via API:
    in stock → promise now; back-ordered → promise from the covering/earliest
    inbound PO's ETA. (Back orders + SO⇄PO cover shipped v28.)
-8. **Accounting sync (Xero)**, a SupplyLens flow draining the stock-journal
+7. **Accounting sync (Xero)**, a SupplyLens flow draining the stock-journal
    outbox and pushing invoices/credits; invoice `POST /paid` already exists
    for the return path.
 
@@ -113,3 +101,4 @@ bin/zone/rack warehouse layouts (3PL territory), invoice OCR.
 | v28 | Back orders: derived (never stored) shortfall state, "Cover shortfall" raising linked draft POs + customer-held inbound holds, SO⇄PO clickable both ways, self-clearing on any stock arrival |
 | v29 | Dark auth surface with resilient constellation; copy style sweep (Oxford punctuation, no en or em dashes, zero third-party brand names) |
 | v30 | Deployed: Postgres (Supabase shared pooler) everywhere including local dev, fresh init migration, pg adapter, build runs generate + migrate + next build, repo pushed to GitHub, Vercel wired |
+| v31 | Production orders: DRAFT/IN_PROGRESS/COMPLETED lifecycle, ASSEMBLED product type, components into WIP at start, actuals + absorbed build costs (labour/machine) at completion, finished tranches at true rolled-up cost, operator-first three-button UI, API register |

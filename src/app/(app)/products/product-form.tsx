@@ -135,6 +135,7 @@ export function ProductFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="STANDARD">Standard</SelectItem>
+                  <SelectItem value="ASSEMBLED">Assembled (manufactured)</SelectItem>
                   <SelectItem value="BUNDLE">Bundle (virtual)</SelectItem>
                 </SelectContent>
               </Select>

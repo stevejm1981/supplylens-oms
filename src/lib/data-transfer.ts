@@ -453,7 +453,7 @@ export const ENTITIES: EntitySpec[] = [
     columns: [
       { name: "sku", required: true, maps: "Product.sku", notes: "Upsert key, uppercased" },
       { name: "name", required: true, maps: "Product.name" },
-      { name: "type", maps: "Product.type", notes: "STANDARD (default) or BUNDLE, build BOMs via the bom-lines import" },
+      { name: "type", maps: "Product.type", notes: "STANDARD (default), BUNDLE (virtual), or ASSEMBLED (manufactured), BOMs via the bom-lines import" },
       { name: "barcode", maps: "Product.barcode", notes: "EAN/GTIN, unique across the catalogue" },
       { name: "weightGrams", maps: "Product.weightGrams", notes: "Whole grams; drives weight-based cost allocation" },
       { name: "baseCostPounds", maps: "Product.baseCostPence", notes: "e.g. 1.85, stored as integer pence" },
@@ -518,8 +518,8 @@ export const ENTITIES: EntitySpec[] = [
           continue;
         }
         const type = up(cells.type ?? "") || undefined;
-        if (type && !["STANDARD", "BUNDLE"].includes(type)) {
-          errors.push(`row ${rowNo}: type must be STANDARD or BUNDLE`);
+        if (type && !["STANDARD", "BUNDLE", "ASSEMBLED"].includes(type)) {
+          errors.push(`row ${rowNo}: type must be STANDARD, BUNDLE, or ASSEMBLED`);
           continue;
         }
         const weight = parseIntCell(cells.weightGrams ?? "");
@@ -694,8 +694,8 @@ export const ENTITIES: EntitySpec[] = [
         }
         const bundle = products.get(bundleSku);
         const component = products.get(componentSku);
-        if (!bundle || bundle.type !== "BUNDLE") {
-          errors.push(`row ${rowNo}: "${bundleSku}" is not a BUNDLE product`);
+        if (!bundle || (bundle.type !== "BUNDLE" && bundle.type !== "ASSEMBLED")) {
+          errors.push(`row ${rowNo}: "${bundleSku}" is not a BUNDLE or ASSEMBLED product`);
           continue;
         }
         if (!component || component.type !== "STANDARD") {

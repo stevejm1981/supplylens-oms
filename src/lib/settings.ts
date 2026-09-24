@@ -26,6 +26,7 @@ export const DOC_PREFIX_DEFAULTS = {
   transfer: "TRF",
   reservation: "RSV",
   stockJournal: "SJ",
+  productionOrder: "BLD",
 } as const;
 
 export type DocType = keyof typeof DOC_PREFIX_DEFAULTS;
@@ -42,6 +43,7 @@ export const DOC_TYPE_TITLES: Record<DocType, string> = {
   transfer: "Warehouse transfers",
   reservation: "Reservations",
   stockJournal: "Stock journals",
+  productionOrder: "Production orders",
 };
 
 export const STATUS_LABEL_DEFAULTS = {
@@ -60,6 +62,9 @@ export const STATUS_LABEL_DEFAULTS = {
   // Purchase orders
   PLACED: "Placed",
   RECEIVED: "Received",
+  // Production orders
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
   // Invoices (derived from paidAt/dueDate)
   UNPAID: "Unpaid",
   OVERDUE: "Overdue",
@@ -88,6 +93,11 @@ export const STATUS_GROUPS: { title: string; note: string; codes: StatusCode[] }
     title: "Purchase orders",
     note: "DRAFT and RECEIVED reuse the labels above where they overlap.",
     codes: ["PLACED", "RECEIVED"],
+  },
+  {
+    title: "Production orders",
+    note: "DRAFT plans the build; IN_PROGRESS has components in WIP; COMPLETED made stock.",
+    codes: ["IN_PROGRESS", "COMPLETED"],
   },
   {
     title: "Invoices",

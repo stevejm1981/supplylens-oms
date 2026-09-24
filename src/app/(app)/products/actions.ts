@@ -30,7 +30,8 @@ export async function saveProduct(formData: FormData): Promise<ActionResult> {
   const id = (formData.get("id") as string) || null;
   const baseCostPence = parsePoundsToPence((formData.get("baseCost") as string) ?? "");
   const sellPricePence = parsePoundsToPence((formData.get("sellPrice") as string) ?? "");
-  const type = (formData.get("type") as string) === "BUNDLE" ? "BUNDLE" : "STANDARD";
+  const rawType = formData.get("type") as string;
+  const type = ["BUNDLE", "ASSEMBLED"].includes(rawType) ? rawType : "STANDARD";
   const data = {
     sku: ((formData.get("sku") as string) ?? "").trim().toUpperCase(),
     name: ((formData.get("name") as string) ?? "").trim(),

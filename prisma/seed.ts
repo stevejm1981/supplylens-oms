@@ -29,6 +29,8 @@ async function wipe() {
   await db.organisation.deleteMany();
   await db.orderAmendment.deleteMany();
   await db.stockReservation.deleteMany();
+  await db.productionOrderLine.deleteMany();
+  await db.productionOrder.deleteMany();
   await db.stockJournalLine.deleteMany();
   await db.stockJournal.deleteMany();
   await db.stockAdjustmentLine.deleteMany();
@@ -218,6 +220,25 @@ async function main() {
         barcode: "5060871330301",
       },
     ],
+  });
+
+  // ── Assembled product: the Winter Hamper (manufactured, holds stock) ─────
+  const hamper = await db.product.create({
+    data: {
+      sku: "HMW-HAMPER-01",
+      name: "Winter Hamper (assembled)",
+      type: "ASSEMBLED",
+      sellPricePence: gbp(59.99),
+      barcode: "5060871330400",
+      bomLines: {
+        create: [
+          { componentId: pid("HMW-BLANKET-GRY"), quantity: 1 },
+          { componentId: pid("HMW-CANDLE-3PK"), quantity: 1 },
+          { componentId: pid("PKG-GIFTBOX-L"), quantity: 1 },
+          { componentId: pid("PKG-TISSUE-50"), quantity: 2 },
+        ],
+      },
+    },
   });
 
   // ── Bundles ──────────────────────────────────────────────────────────────
@@ -1438,6 +1459,115 @@ async function main() {
     });
   }
 
+  // ── Production: one completed hamper build (with the story numbers) and a
+  // draft plan waiting to start ─────────────────────────────────────────────
+  {
+    const bomPer = [
+      ["HMW-BLANKET-GRY", 1],
+      ["HMW-CANDLE-3PK", 1],
+      ["PKG-GIFTBOX-L", 1],
+      ["PKG-TISSUE-50", 2],
+    ] as const;
+    const madeQty = 25;
+    const overhead = gbp(45); // 3 hours assembly labour
+    let componentValue = 0;
+    const bld = await db.productionOrder.create({
+      data: {
+        reference: "BLD-0001",
+        productId: hamper.id,
+        warehouseId: northampton.id,
+        status: "COMPLETED",
+        plannedQty: madeQty,
+        actualQty: madeQty,
+        overheadPence: overhead,
+        overheadNote: "3 hours assembly labour",
+        notes: "First hamper run for the winter range",
+        createdAt: daysAgo(1),
+        startedAt: daysAgo(1),
+        completedAt: daysAgo(0),
+      },
+    });
+    for (const [sku, per] of bomPer) {
+      const qty = per * madeQty;
+      const cost = avgLanded.get(pid(sku)) ?? 0;
+      componentValue += qty * cost;
+      await db.productionOrderLine.create({
+        data: {
+          orderId: bld.id,
+          componentId: pid(sku),
+          plannedQty: qty,
+          actualQty: qty,
+          unitCostPence: cost,
+        },
+      });
+      await db.stockLevel.update({
+        where: { productId_warehouseId: { productId: pid(sku), warehouseId: northampton.id } },
+        data: { quantity: { decrement: qty } },
+      });
+      await logMove(pid(sku), northampton.id, -qty, "ASSEMBLY_BUILD", "BLD-0001", bld.id, daysAgo(1));
+    }
+    await db.stockLevel.upsert({
+      where: { productId_warehouseId: { productId: hamper.id, warehouseId: northampton.id } },
+      create: { productId: hamper.id, warehouseId: northampton.id, quantity: madeQty },
+      update: { quantity: { increment: madeQty } },
+    });
+    await logMove(hamper.id, northampton.id, madeQty, "ASSEMBLY_BUILD", "BLD-0001", bld.id, daysAgo(0));
+    const cv = Math.round(componentValue);
+    await db.stockJournal.create({
+      data: {
+        reference: `SJ-${String((await db.stockJournal.count()) + 1).padStart(4, "0")}`,
+        type: "PRODUCTION",
+        sourceRef: "BLD-0001",
+        sourceId: bld.id,
+        memo: "Build started BLD-0001: components into WIP",
+        totalPence: cv,
+        createdAt: daysAgo(1),
+        lines: {
+          create: [
+            { account: "Work in Progress", debitPence: cv },
+            { account: "Stock on Hand", creditPence: cv },
+          ],
+        },
+      },
+    });
+    await db.stockJournal.create({
+      data: {
+        reference: `SJ-${String((await db.stockJournal.count()) + 1).padStart(4, "0")}`,
+        type: "PRODUCTION",
+        sourceRef: "BLD-0001",
+        sourceId: bld.id,
+        memo: `Build completed BLD-0001: ${madeQty} x HMW-HAMPER-01 at actual cost`,
+        totalPence: cv + overhead,
+        createdAt: daysAgo(0),
+        lines: {
+          create: [
+            { account: "Stock on Hand", debitPence: cv + overhead },
+            { account: "Work in Progress", creditPence: cv },
+            { account: "Production Overhead Absorbed", creditPence: overhead, description: "3 hours assembly labour" },
+          ],
+        },
+      },
+    });
+    // a draft plan ready for the live demo
+    await db.productionOrder.create({
+      data: {
+        reference: "BLD-0002",
+        productId: hamper.id,
+        warehouseId: northampton.id,
+        status: "DRAFT",
+        plannedQty: 40,
+        notes: "Second run, start live in the demo",
+        createdAt: daysAgo(0),
+        lines: {
+          create: bomPer.map(([sku, per]) => ({
+            componentId: pid(sku),
+            plannedQty: per * 40,
+          })),
+        },
+      },
+    });
+  }
+
   const counts = {
     families: await db.productFamily.count(),
     categories: await db.category.count(),
@@ -1448,6 +1578,7 @@ async function main() {
     adjustments: await db.stockAdjustment.count(),
     transfers: await db.warehouseTransfer.count(),
     stockJournals: await db.stockJournal.count(),
+    productionOrders: await db.productionOrder.count(),
     products: await db.product.count(),
     warehouses: await db.warehouse.count(),
     stockLevels: await db.stockLevel.count(),

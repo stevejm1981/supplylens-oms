@@ -39,6 +39,7 @@ export default async function SettingsPage() {
     transfer: await db.warehouseTransfer.count(),
     reservation: await db.stockReservation.count(),
     stockJournal: await db.stockJournal.count(),
+    productionOrder: await db.productionOrder.count(),
   };
 
   return (

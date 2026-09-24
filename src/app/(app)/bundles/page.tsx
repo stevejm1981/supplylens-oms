@@ -20,7 +20,7 @@ import { ProductFormDialog } from "../products/product-form";
 export default async function BundlesPage() {
   const [bundles, suppliers, effective] = await Promise.all([
     db.product.findMany({
-      where: { type: "BUNDLE" },
+      where: { type: { in: ["BUNDLE", "ASSEMBLED"] } },
       orderBy: { sku: "asc" },
       include: { bomLines: { include: { component: true } } },
     }),

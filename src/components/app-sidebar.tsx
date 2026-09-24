@@ -15,6 +15,7 @@ import {
   DatabaseBackup,
   Factory,
   FileText,
+  Hammer,
   History,
   LayoutDashboard,
   LockKeyhole,
@@ -83,6 +84,10 @@ const sections: { label: string; items: { title: string; href: string; icon: Rea
       { title: "Cost Invoices", href: "/cost-invoices", icon: Receipt },
       { title: "Replenishment", href: "/replenishment", icon: TrendingUp },
     ],
+  },
+  {
+    label: "Production",
+    items: [{ title: "Production Orders", href: "/production", icon: Hammer }],
   },
   {
     label: "Warehouse",

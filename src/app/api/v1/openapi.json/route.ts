@@ -474,6 +474,19 @@ const spec = {
         },
       },
     },
+    "/production-orders": {
+      get: {
+        summary: "Production orders (assembly builds)",
+        tags: ["Production"],
+        description:
+          "The manufacturing lifecycle: DRAFT (planned from the BOM), IN_PROGRESS (components consumed into WIP at snapshotted average landed cost), COMPLETED (actual produced and consumed recorded; finished goods entered at actual component value plus absorbed build costs, divided by actual units).",
+        parameters: [
+          { name: "status", in: "query", schema: { type: "string", enum: ["DRAFT", "IN_PROGRESS", "COMPLETED"] } },
+          { $ref: "#/components/parameters/updatedSince" },
+        ],
+        responses: { "200": { description: "Builds with planned vs actual lines and cost snapshots" } },
+      },
+    },
     "/adjustments": {
       get: {
         summary: "Stock adjustments (stocktake variances, damage, shrinkage)",

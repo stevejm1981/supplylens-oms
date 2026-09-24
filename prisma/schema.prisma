@@ -93,6 +93,8 @@ model Product {
   uoms          ProductUom[]
   adjustmentLines StockAdjustmentLine[]
   transferLines   WarehouseTransferLine[]
+  productionOrders ProductionOrder[]
+  usedInProduction ProductionOrderLine[] @relation("productionComponent")
 }
 
 // Alternate selling units — pack/case configurations. GS1-style: an outer
@@ -205,6 +207,7 @@ model Warehouse {
   adjustments   StockAdjustment[]
   transfersFrom WarehouseTransfer[] @relation("transferFrom")
   transfersTo   WarehouseTransfer[] @relation("transferTo")
+  productionOrders ProductionOrder[]
   movements   StockMovement[]
   customerReturns CustomerReturn[]
   supplierReturns SupplierReturn[]
@@ -294,6 +297,46 @@ model CustomerLocation {
   salesOrders SalesOrder[]
 
   @@unique([customerId, code])
+}
+
+// Production order: the manufacturing lifecycle document (agreed 2026-09-24).
+// DRAFT plans a build from the BOM; starting it consumes components into
+// work-in-progress; completing it records ACTUAL produced and consumed, and
+// finished goods enter stock as a cost tranche at actual component value.
+// Explicitly excluded: routings, work centres, labour, MRP.
+model ProductionOrder {
+  id          String    @id @default(cuid())
+  reference   String    @unique // "BLD-0001"
+  productId   String // the ASSEMBLED product being built
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  status      String    @default("DRAFT") // "DRAFT" | "IN_PROGRESS" | "COMPLETED"
+  plannedQty  Int
+  actualQty   Int? // recorded at completion (yield is rarely exactly plan)
+  // Optional absorbed costs recorded at completion (labour, machine time),
+  // rolled into the finished unit cost. Not timesheets or routings: one
+  // honest number, like a landed-cost invoice for a build.
+  overheadPence Int     @default(0)
+  overheadNote  String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  lines ProductionOrderLine[]
+}
+
+model ProductionOrderLine {
+  id            String          @id @default(cuid())
+  orderId       String
+  order         ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  componentId   String
+  component     Product         @relation("productionComponent", fields: [componentId], references: [id])
+  plannedQty    Int // BOM x planned build quantity, snapshotted at creation
+  actualQty     Int? // what really went in, recorded at completion
+  unitCostPence Float? // component average landed cost, snapshotted at start
 }
 
 // Stock adjustment — the stocktake/damage/shrinkage document. Applied the

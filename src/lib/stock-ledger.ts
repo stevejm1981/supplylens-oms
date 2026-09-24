@@ -12,7 +12,8 @@ export type MovementType =
   | "CUSTOMER_RETURN"
   | "SUPPLIER_RETURN"
   | "ADJUSTMENT"
-  | "TRANSFER";
+  | "TRANSFER"
+  | "ASSEMBLY_BUILD";
 
 export const movementTypeLabels: Record<string, string> = {
   OPENING: "Opening balance",
@@ -23,6 +24,7 @@ export const movementTypeLabels: Record<string, string> = {
   SUPPLIER_RETURN: "Supplier return",
   ADJUSTMENT: "Adjustment",
   TRANSFER: "Warehouse transfer",
+  ASSEMBLY_BUILD: "Production build",
 };
 
 export async function recordMovement(

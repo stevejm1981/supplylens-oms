@@ -35,7 +35,7 @@ export default async function BundlePage({
     }),
     getAvailability(),
   ]);
-  if (!bundle || bundle.type !== "BUNDLE") notFound();
+  if (!bundle || (bundle.type !== "BUNDLE" && bundle.type !== "ASSEMBLED")) notFound();
 
   // Bundles derive from component AVAILABILITY (SOH − committed − reserved),
   // not raw stock, a pre-order or reservation on a component caps the bundle.
