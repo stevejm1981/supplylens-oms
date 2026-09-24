@@ -31,7 +31,7 @@ export default async function BundlesPage() {
   return (
     <div>
       <PageHeader
-        title="Bundles"
+        title="Bundles & BOMs"
         hint="Virtual kits, no assembly step. Availability derives from component stock."
       >
         <ProductFormDialog

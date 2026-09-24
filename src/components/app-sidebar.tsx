@@ -74,7 +74,7 @@ const sections: { label: string; items: { title: string; href: string; icon: Rea
     items: [
       { title: "Suppliers", href: "/suppliers", icon: Factory },
       { title: "Products", href: "/products", icon: Package },
-      { title: "Bundles", href: "/bundles", icon: Boxes },
+      { title: "Bundles & BOMs", href: "/bundles", icon: Boxes },
     ],
   },
   {
