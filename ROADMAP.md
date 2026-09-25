@@ -59,6 +59,10 @@ are standard core, not add-ons.
   DPD's shipping API on the customer's own account. *Trigger: Equinox pilot.*
 - **Portal payments via provider** (Stripe/GoCardless): pay-now on proforma
   orders from zero-terms customers; the payment webhook releases the draft.
+- **Line-level transaction exports**: one-click CSVs of sales order lines,
+  PO lines, and stock movements (itemised, not header-level), the
+  spreadsheet-friendly answer to "where do I download itemised lists?", which
+  legacy platforms answer with report-scraping and manual column mapping.
 - **Stocktake count-sheet mode**, export a count sheet per warehouse
   (SKU, expected, blank "counted" column), import it back → one variance
   adjustment document, fully ledgered. Today: full counts via Adjustments.
