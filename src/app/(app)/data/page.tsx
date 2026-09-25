@@ -23,6 +23,60 @@ export default function DataPage() {
         hint="Customer onboarding in CSVs. Export any register (it doubles as the import template), fill it in, import it back. Files import in the numbered order, later entities reference earlier ones by code. Every row is validated first: any error anywhere rejects the whole file with row-numbered problems, so nothing half-loads. Re-importing is safe, rows upsert by their natural key, and blank cells leave existing values unchanged."
       />
 
+      <Card className="mb-6 border-primary/30">
+        <CardHeader>
+          <CardTitle className="text-base">
+            Demo import pack, the guided tour on rails
+            <Badge variant="outline" className="ml-2 font-mono text-[10px]">9 files</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm">
+          <p>
+            Nine ready-made CSVs containing a small, self-contained catalogue (the
+            &quot;Coastal&quot; range) so you can experience every import without authoring
+            data. Download them, then import each on this page <b>in number order</b>,
+            later files reference earlier ones by code.
+          </p>
+          <p className="text-muted-foreground">
+            <b>Exactly what it contains and what importing it will do:</b> adds 1
+            salesperson (Priya Shah), 1 warehouse (Demo 3PL, code DEMO), 1 supplier
+            (COASTAL), 1 customer (BRIGHT, with 2 delivery locations), 6 products
+            (4 standard with barcodes, 1 bundle, 1 assembled with a makes-10 recipe),
+            1 pack configuration with an outer barcode, 5 BOM lines, and opening stock
+            for 4 SKUs in the Demo warehouse (about £2,105 of value, with its take-on
+            journal). Everything sits <b>alongside</b> the seeded Greenfield story under
+            its own codes; nothing existing is touched. Re-importing any file is safe
+            (rows upsert), except opening stock which correctly loads once. Reseeding
+            the database removes the lot.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              "1-salespeople.csv",
+              "2-warehouses.csv",
+              "3-suppliers.csv",
+              "4-customers.csv",
+              "5-customer-locations.csv",
+              "6-products.csv",
+              "7-pack-configurations.csv",
+              "8-bom-lines.csv",
+              "9-opening-stock.csv",
+            ].map((f) => (
+              <Button key={f} asChild variant="outline" size="sm">
+                <a href={`/demo-pack/${f}`} download>
+                  <Download className="size-3.5" /> {f}
+                </a>
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            After importing: order the diffusers by their case barcode 5060871330555
+            through the API or an order form, build 20 candle boxes in Production (2
+            batches of the makes-10 recipe), and despatch a gift set to watch the
+            bundle explode, the whole lifecycle on data you just imported.
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6">
         {ENTITIES.map((entity, index) => (
           <Card key={entity.key}>

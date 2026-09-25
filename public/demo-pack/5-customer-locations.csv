@@ -1,0 +1,5 @@
+customerCode,code,name,address,contact,isDefault
+BRIGHT,SALFORD-DC,Salford DC,"Unit 9, Quayside Park
+Salford M50 3AZ","Goods In, 0161 555 0200",TRUE
+BRIGHT,LEEDS-STORE,Leeds Store,"14 Briggate
+Leeds LS1 6ER",Store Manager,FALSE
