@@ -99,6 +99,7 @@ model Product {
   transferLines   WarehouseTransferLine[]
   productionOrders ProductionOrder[]
   usedInProduction ProductionOrderLine[] @relation("productionComponent")
+  customerPrices   CustomerPrice[]
 }
 
 // Alternate selling units — pack/case configurations. GS1-style: an outer
@@ -506,6 +507,60 @@ model ApiToken {
   revokedAt   DateTime?
 }
 
+// ── B2B portal: a customer's buyers, fully separate from staff identity ─────
+// Invite-only (staff invite from the customer page). Own session cookie, so a
+// staff login never opens the portal and vice versa.
+model PortalUser {
+  id           String   @id @default(cuid())
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  sessions PortalSession[]
+}
+
+model PortalSession {
+  id           String     @id @default(cuid())
+  token        String     @unique
+  portalUserId String
+  portalUser   PortalUser @relation(fields: [portalUserId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  expiresAt    DateTime
+}
+
+model PortalInvitation {
+  id          String    @id @default(cuid())
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  email       String
+  token       String    @unique
+  invitedById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  @@unique([customerId, email])
+}
+
+// Per-customer price lists: the price THIS customer pays for a product
+// (per each; pack prices derive by the unit factor). Falls back to the
+// product's sell price when absent.
+model CustomerPrice {
+  id             String   @id @default(cuid())
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  unitPricePence Int
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  @@unique([customerId, productId])
+}
+
 // App settings — a plain key/value store. Typed access + defaults live in
 // src/lib/settings.ts; nothing reads this table directly.
 model Setting {
@@ -544,6 +599,9 @@ model Customer {
   salesOrders  SalesOrder[]
   locations    CustomerLocation[]
   reservations StockReservation[]
+  portalUsers       PortalUser[]
+  portalInvitations PortalInvitation[]
+  prices            CustomerPrice[]
 }
 
 model SalesOrder {

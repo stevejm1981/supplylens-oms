@@ -106,3 +106,84 @@ export async function deleteCustomer(id: string): Promise<ActionResult> {
   revalidatePath("/customers");
   return { ok: true };
 }
+
+
+// ── B2B portal management: price lists and buyer access ─────────────────────
+
+import { requireOrgAdmin } from "@/lib/auth";
+import { generateToken } from "@/lib/auth-crypto";
+import { parsePoundsToPence } from "@/lib/money";
+
+export async function saveCustomerPrice(input: {
+  customerId: string;
+  productId: string;
+  pricePounds: string;
+}): Promise<ActionResult> {
+  const pence = parsePoundsToPence(input.pricePounds);
+  if (pence == null || pence < 0) return { ok: false, error: "Enter a price like 5.49" };
+  if (!input.productId) return { ok: false, error: "Choose a product" };
+  await db.customerPrice.upsert({
+    where: { customerId_productId: { customerId: input.customerId, productId: input.productId } },
+    create: { customerId: input.customerId, productId: input.productId, unitPricePence: pence },
+    update: { unitPricePence: pence },
+  });
+  revalidatePath("/customers");
+  return { ok: true };
+}
+
+export async function deleteCustomerPrice(id: string): Promise<ActionResult> {
+  await db.customerPrice.delete({ where: { id } });
+  revalidatePath("/customers");
+  return { ok: true };
+}
+
+const PORTAL_INVITE_DAYS = 7;
+
+export async function invitePortalUser(input: {
+  customerId: string;
+  email: string;
+}): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
+  const admin = await requireOrgAdmin();
+  if ("error" in admin) return { ok: false, error: admin.error };
+  const email = input.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Enter a valid email address" };
+  }
+  const existing = await db.portalUser.findUnique({ where: { email } });
+  if (existing) return { ok: false, error: "That email already has portal access" };
+  const token = generateToken();
+  await db.portalInvitation.upsert({
+    where: { customerId_email: { customerId: input.customerId, email } },
+    create: {
+      customerId: input.customerId,
+      email,
+      token,
+      invitedById: admin.id,
+      expiresAt: new Date(Date.now() + PORTAL_INVITE_DAYS * 24 * 60 * 60 * 1000),
+    },
+    update: {
+      token,
+      invitedById: admin.id,
+      expiresAt: new Date(Date.now() + PORTAL_INVITE_DAYS * 24 * 60 * 60 * 1000),
+      acceptedAt: null,
+    },
+  });
+  revalidatePath("/customers");
+  return { ok: true, link: `/portal/invite/${token}` };
+}
+
+export async function revokePortalInvitation(id: string): Promise<ActionResult> {
+  const admin = await requireOrgAdmin();
+  if ("error" in admin) return { ok: false, error: admin.error };
+  await db.portalInvitation.deleteMany({ where: { id, acceptedAt: null } });
+  revalidatePath("/customers");
+  return { ok: true };
+}
+
+export async function removePortalUser(id: string): Promise<ActionResult> {
+  const admin = await requireOrgAdmin();
+  if ("error" in admin) return { ok: false, error: admin.error };
+  await db.portalUser.delete({ where: { id } });
+  revalidatePath("/customers");
+  return { ok: true };
+}

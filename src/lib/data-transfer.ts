@@ -729,6 +729,64 @@ export const ENTITIES: EntitySpec[] = [
     },
   },
   {
+    key: "price-lists",
+    title: "Customer price lists",
+    description: "The price each customer pays per each; portal, order forms, and priceless API orders resolve from here.",
+    naturalKey: "customerCode + sku",
+    columns: [
+      { name: "customerCode", required: true, maps: "Customer.code", notes: "Must exist, import customers first" },
+      { name: "sku", required: true, maps: "Product.sku", notes: "Must exist, import products first" },
+      { name: "unitPricePounds", required: true, maps: "CustomerPrice.unitPricePence", notes: "Per each, e.g. 5.49; pack prices derive automatically" },
+    ],
+    async exportRows() {
+      const rows = await db.customerPrice.findMany({
+        orderBy: [{ customer: { code: "asc" } }, { product: { sku: "asc" } }],
+        include: { customer: { select: { code: true } }, product: { select: { sku: true } } },
+      });
+      return rows.map((r) => [r.customer.code, r.product.sku, pounds(r.unitPricePence)]);
+    },
+    async importRows(tx, rows, errors) {
+      let created = 0;
+      let updated = 0;
+      const customers = new Map((await tx.customer.findMany()).map((c) => [c.code, c.id]));
+      const products = new Map((await tx.product.findMany()).map((p) => [p.sku, p.id]));
+      for (const { rowNo, cells } of rows) {
+        const customerCode = up(cells.customerCode ?? "");
+        const sku = up(cells.sku ?? "");
+        const price = poundsCell(cells.unitPricePounds ?? "");
+        if (!customerCode || !sku || price === undefined) {
+          errors.push(`row ${rowNo}: customerCode, sku and unitPricePounds are required`);
+          continue;
+        }
+        if (price === null || price < 0) {
+          errors.push(`row ${rowNo}: unitPricePounds must be like 5.49`);
+          continue;
+        }
+        const customerId = customers.get(customerCode);
+        if (!customerId) {
+          errors.push(`row ${rowNo}: unknown customerCode "${customerCode}"`);
+          continue;
+        }
+        const productId = products.get(sku);
+        if (!productId) {
+          errors.push(`row ${rowNo}: unknown sku "${sku}"`);
+          continue;
+        }
+        const found = await tx.customerPrice.findUnique({
+          where: { customerId_productId: { customerId, productId } },
+        });
+        if (found) {
+          await tx.customerPrice.update({ where: { id: found.id }, data: { unitPricePence: price } });
+          updated++;
+        } else {
+          await tx.customerPrice.create({ data: { customerId, productId, unitPricePence: price } });
+          created++;
+        }
+      }
+      return { created, updated };
+    },
+  },
+  {
     key: "opening-stock",
     title: "Opening stock",
     description: "Initial balances at landed cost, import LAST, once per product/warehouse.",

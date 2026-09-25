@@ -57,14 +57,14 @@ are standard core, not add-ons.
   coverage. Only when a prospect actually has multi-site fulfilment.
 - **DPD label integration**, replace the Despatch Station's mock label with
   DPD's shipping API on the customer's own account. *Trigger: Equinox pilot.*
+- **Portal payments via provider** (Stripe/GoCardless): pay-now on proforma
+  orders from zero-terms customers; the payment webhook releases the draft.
 - **Stocktake count-sheet mode**, export a count sheet per warehouse
   (SKU, expected, blank "counted" column), import it back → one variance
   adjustment document, fully ledgered. Today: full counts via Adjustments.
 - **Partial PO receipts**, receive line quantities across multiple deliveries.
 - **Sales-order history import**, open orders at cutover for migrations that
   can't start clean.
-- **B2B portal**, customer-facing ordering/tracking. The API serves this
-  audience today; a portal is a product decision, not a gap.
 - **Integration test harness**, vitest suite against a scratch SQLite file
   exercising the transactional flows end-to-end (despatch, receipt, RMA,
   adjustment) the way the tsx verification scripts do by hand today.
@@ -101,5 +101,6 @@ bin/zone/rack warehouse layouts (3PL territory), invoice OCR.
 | v28 | Back orders: derived (never stored) shortfall state, "Cover shortfall" raising linked draft POs + customer-held inbound holds, SO⇄PO clickable both ways, self-clearing on any stock arrival |
 | v29 | Dark auth surface with resilient constellation; copy style sweep (Oxford punctuation, no en or em dashes, zero third-party brand names) |
 | v30 | Deployed: Postgres (Supabase shared pooler) everywhere including local dev, fresh init migration, pg adapter, build runs generate + migrate + next build, repo pushed to GitHub, Vercel wired |
+| v36 | B2B portal: invite-only buyer logins per customer, catalogue at price-list prices with stock bands, basket ordering onto the b2b-portal channel (proforma drafts for zero-terms customers), order tracking, invoices and credits with account balances, returns requests; per-customer price lists across the OMS, order forms, imports, and priceless API intake |
 | v32 | Financial completeness audit: landed-cost invoices journal stock uplift (with delete reversal), receipts include pre-allocated costs, supplier returns journal Supplier Credits Due, opening-stock imports write take-on journals; the Financials Map in the University |
 | v31 | Production orders: DRAFT/IN_PROGRESS/COMPLETED lifecycle, ASSEMBLED product type, components into WIP at start, actuals + absorbed build costs (labour/machine) at completion, finished tranches at true rolled-up cost, operator-first three-button UI, API register; recipe-yield BOMs ("this recipe makes N units") with batch-aware planning |

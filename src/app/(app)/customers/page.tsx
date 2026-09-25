@@ -17,16 +17,20 @@ import {
 } from "@/components/ui/table";
 import { CustomerFormDialog } from "./customer-form";
 import { LocationsDialog } from "./locations-dialog";
+import { PortalAccessDialog, PriceListDialog } from "./portal-dialogs";
 import { deleteCustomer } from "./actions";
 
 export default async function CustomersPage() {
-  const [customers, salespeople, warehouses] = await Promise.all([
+  const [customers, salespeople, warehouses, products] = await Promise.all([
     db.customer.findMany({
       orderBy: { name: "asc" },
       include: {
         defaultSalesPerson: true,
         defaultWarehouse: true,
         locations: { orderBy: [{ isDefault: "desc" }, { name: "asc" }] },
+        prices: { include: { product: { select: { sku: true, name: true, sellPricePence: true } } }, orderBy: { product: { sku: "asc" } } },
+        portalUsers: { orderBy: { name: "asc" } },
+        portalInvitations: { where: { acceptedAt: null }, orderBy: { createdAt: "desc" } },
         salesOrders: {
           where: { OR: [{ status: "INVOICED" }, { dispatchedAt: { not: null } }] },
           include: { lines: true },
@@ -36,6 +40,7 @@ export default async function CustomersPage() {
     }),
     db.salesPerson.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.warehouse.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.product.findMany({ orderBy: { sku: "asc" }, select: { id: true, sku: true, name: true } }),
   ]);
 
   return (
@@ -100,6 +105,29 @@ export default async function CustomersPage() {
                             customerId={c.id}
                             customerName={c.name}
                             locations={c.locations}
+                          />
+                          <PriceListDialog
+                            customerId={c.id}
+                            customerName={c.name}
+                            products={products}
+                            prices={c.prices.map((pr) => ({
+                              id: pr.id,
+                              sku: pr.product.sku,
+                              name: pr.product.name,
+                              unitPricePence: pr.unitPricePence,
+                              sellPricePence: pr.product.sellPricePence,
+                            }))}
+                          />
+                          <PortalAccessDialog
+                            customerId={c.id}
+                            customerName={c.name}
+                            users={c.portalUsers.map((u) => ({ id: u.id, name: u.name, email: u.email }))}
+                            invites={c.portalInvitations.map((inv) => ({
+                              id: inv.id,
+                              email: inv.email,
+                              link: `/portal/invite/${inv.token}`,
+                              expired: inv.expiresAt.getTime() < Date.now(),
+                            }))}
                           />
                           <CustomerFormDialog
                             customer={c}

@@ -22,6 +22,10 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 const daysAhead = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function wipe() {
+  await db.portalSession.deleteMany();
+  await db.portalInvitation.deleteMany();
+  await db.portalUser.deleteMany();
+  await db.customerPrice.deleteMany();
   await db.session.deleteMany();
   await db.invitation.deleteMany();
   await db.membership.deleteMany();
@@ -621,6 +625,15 @@ async function main() {
     channelIds.set(c.code, created.id);
   }
 
+  // ── B2B portal: its channel, a price list, and a buyer login ─────────────
+  {
+    const portalChannel = await db.channel.create({
+      data: { name: "B2B Portal", code: "b2b-portal", rulesJson: "[]" },
+    });
+    channelIds.set("b2b-portal", portalChannel.id);
+  }
+
+
   // ── Sales team & customers ───────────────────────────────────────────────
   const [tommy, sarah, james] = await Promise.all([
     db.salesPerson.create({ data: { name: "Tommy Hale", email: "tommy@example.co.uk" } }),
@@ -735,6 +748,26 @@ async function main() {
     }
     return avgLanded.get(productId) ?? 0;
   };
+
+  // HARW buys at list prices, and Jane can sign in to the portal.
+  {
+    const harw = customers.get("HARW")!;
+    await db.customerPrice.createMany({
+      data: [
+        { customerId: harw.id, productId: pid("GRD-TONGS-01"), unitPricePence: gbp(5.49) },
+        { customerId: harw.id, productId: pid("HMW-BLANKET-GRY"), unitPricePence: gbp(26.99) },
+        { customerId: harw.id, productId: pid("PKG-GIFTBOX-L"), unitPricePence: gbp(2.29) },
+      ],
+    });
+    await db.portalUser.create({
+      data: {
+        customerId: harw.id,
+        email: "jane@harrods-demo.co.uk",
+        name: "Jane Porter",
+        passwordHash: hashPassword("demo1234"),
+      },
+    });
+  }
 
   // ── Sales history (last ~4 weeks) ────────────────────────────────────────
   let soSeq = 0;

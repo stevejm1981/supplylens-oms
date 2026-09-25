@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { orderNetPence } from "@/lib/sales";
 import { getSettings } from "@/lib/settings";
+import { resolveUnitPrice } from "@/lib/engine/pricing";
 import { createSalesOrder } from "@/app/(app)/sales-orders/actions";
 import { parseUpdatedSince, requireApiKey } from "../auth";
 
@@ -62,7 +63,7 @@ interface IntakeLine {
   barcode?: string; // EAN/GTIN, the product's own, or an outer/case GTIN which also picks the unit
   uom?: string; // pack unit code ("PACK6"), omit for eaches; implied by an outer barcode
   quantity: number; // in the ordered unit (16 = 16 packs when the unit is a pack)
-  unitPricePence: number; // per ordered unit (per pack when a pack unit applies)
+  unitPricePence?: number; // per ordered unit; OMIT to price from the customer's list (or sell price)
   discountPct?: number;
 }
 
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
 
   const customer = await db.customer.findUnique({
     where: { code: payload.customer.toUpperCase() },
-    include: { locations: true },
+    include: { locations: true, prices: true },
   });
   if (!customer) problems.push(`unknown customer code "${payload.customer}"`);
 
@@ -185,7 +186,7 @@ export async function POST(request: Request) {
     if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
       problems.push(`invalid quantity for "${label}"`);
     }
-    if (!Number.isInteger(line.unitPricePence) || line.unitPricePence < 0) {
+    if (line.unitPricePence !== undefined && (!Number.isInteger(line.unitPricePence) || line.unitPricePence < 0)) {
       problems.push(`invalid unitPricePence for "${label}" (integer pence required)`);
     }
   }
@@ -258,12 +259,21 @@ export async function POST(request: Request) {
     notes: payload.notes ?? null,
     lines: payload.lines.map((l) => {
       const { product, uom } = resolveLine(l)!;
+      const listPrice = customer!.prices.find((p) => p.productId === product.id);
       return {
         productId: product.id,
         quantity: l.quantity,
         uomCode: uom?.code ?? null,
         unitsPerUom: uom?.unitsPerUom ?? 1,
-        unitPricePence: l.unitPricePence,
+        // Explicit price wins; otherwise the customer's list price, then the
+        // standard sell price, times the pack factor.
+        unitPricePence:
+          l.unitPricePence ??
+          resolveUnitPrice({
+            customerPricePence: listPrice?.unitPricePence ?? null,
+            sellPricePence: product.sellPricePence,
+            unitsPerUom: uom?.unitsPerUom ?? 1,
+          }),
         discountPct: l.discountPct ?? 0,
       };
     }),

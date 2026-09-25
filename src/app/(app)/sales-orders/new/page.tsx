@@ -13,6 +13,7 @@ export default async function NewSalesOrderPage() {
         defaultSalesPersonId: true,
         defaultWarehouseId: true,
         deliveryAddress: true,
+        prices: { select: { productId: true, unitPricePence: true } },
         locations: {
           orderBy: [{ isDefault: "desc" }, { name: "asc" }],
           select: {

@@ -47,6 +47,7 @@ export interface CustomerOption {
   defaultWarehouseId: string | null;
   deliveryAddress: string | null;
   locations: CustomerLocationOption[];
+  prices: { productId: string; unitPricePence: number }[];
 }
 export interface SimpleOption {
   id: string;
@@ -144,6 +145,13 @@ export function SoForm({
     }
   }
 
+  // The customer's list price wins over the standard sell price.
+  const eachPriceFor = (productId: string): number => {
+    const listed = selectedCustomer?.prices.find((pr) => pr.productId === productId);
+    const p = productById.get(productId);
+    return listed?.unitPricePence ?? p?.sellPricePence ?? 0;
+  };
+
   function updateLine(key: number, patch: Partial<EditableLine>) {
     setLines((prev) =>
       prev.map((l) => {
@@ -151,9 +159,9 @@ export function SoForm({
         const next = { ...l, ...patch };
         if (patch.productId) {
           next.uomCode = "each"; // unit belongs to the product, reset on change
-          const p = productById.get(patch.productId);
-          if (!l.unitPrice && p && p.sellPricePence > 0) {
-            next.unitPrice = (p.sellPricePence / 100).toFixed(2);
+          const each = eachPriceFor(patch.productId);
+          if (!l.unitPrice && each > 0) {
+            next.unitPrice = (each / 100).toFixed(2);
           }
         }
         if (patch.uomCode) {
@@ -163,8 +171,9 @@ export function SoForm({
             patch.uomCode === "each"
               ? 1
               : (p?.uoms.find((u) => u.code === patch.uomCode)?.unitsPerUom ?? 1);
-          if (p && p.sellPricePence > 0) {
-            next.unitPrice = ((p.sellPricePence * per) / 100).toFixed(2);
+          const each = eachPriceFor(next.productId);
+          if (each > 0) {
+            next.unitPrice = ((each * per) / 100).toFixed(2);
           }
         }
         return next;
