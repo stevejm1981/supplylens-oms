@@ -69,6 +69,11 @@ are standard core, not add-ons.
 - **Partial PO receipts**, receive line quantities across multiple deliveries.
 - **Sales-order history import**, open orders at cutover for migrations that
   can't start clean.
+- **Scale hardening**: materialised availability counters (maintained in the
+  same transactions as stock moves, replacing the walk-everything computation),
+  cached average landed costs, and query/index review, due when a real tenant
+  approaches thousands of open order lines. The infrastructure (Vercel +
+  Supabase) is not the constraint; these computations are.
 - **Integration test harness**, vitest suite against a scratch SQLite file
   exercising the transactional flows end-to-end (despatch, receipt, RMA,
   adjustment) the way the tsx verification scripts do by hand today.
