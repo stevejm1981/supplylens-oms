@@ -7,11 +7,22 @@ import { LogOut, Telescope } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { getCurrentBuyer } from "@/lib/portal-auth";
+import { AuthScene } from "@/components/auth-scene";
 import { portalSignOut } from "./actions";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const [buyer, org] = await Promise.all([getCurrentBuyer(), db.organisation.findFirst()]);
   const brand = org?.name ?? "SupplyLens OMS";
+
+  // Signed-out surfaces (sign-in, invite acceptance) get the dark scene,
+  // the first thing a buyer ever sees deserves the front-door treatment.
+  if (!buyer) {
+    return (
+      <AuthScene heading={brand} accent="Trade Portal" sub="Wholesale ordering, by invitation">
+        {children}
+      </AuthScene>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
