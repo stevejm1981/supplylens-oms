@@ -81,6 +81,7 @@ export async function receiveGoodsReceipt(input: {
   poId: string;
   warehouseId: string;
   notes?: string | null;
+  source?: "UI" | "API"; // provenance, defaults UI
   lines: GoodsReceiptLineInput[];
 }): Promise<ActionResult> {
   const warehouse = await db.warehouse.findUnique({ where: { id: input.warehouseId } });
@@ -123,6 +124,7 @@ export async function receiveGoodsReceipt(input: {
           poId: po.id,
           warehouseId: input.warehouseId,
           notes: input.notes?.trim() || null,
+          source: input.source ?? "UI",
         },
       });
 
@@ -247,6 +249,7 @@ export async function receiveGoodsReceipt(input: {
 export async function receivePurchaseOrder(
   id: string,
   warehouseId: string,
+  source: "UI" | "API" = "UI",
 ): Promise<ActionResult> {
   const po = await db.purchaseOrder.findUnique({
     where: { id },
@@ -261,7 +264,7 @@ export async function receivePurchaseOrder(
     .map((l) => ({ poLineId: l.id, quantity: progress.outstandingByLine.get(l.id) ?? 0 }))
     .filter((l) => l.quantity > 0);
   if (lines.length === 0) return { ok: false, error: "Nothing left to receive" };
-  return receiveGoodsReceipt({ poId: id, warehouseId, lines });
+  return receiveGoodsReceipt({ poId: id, warehouseId, lines, source });
 }
 
 export async function deletePurchaseOrder(id: string): Promise<ActionResult> {

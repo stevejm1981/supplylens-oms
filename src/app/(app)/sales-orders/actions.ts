@@ -57,6 +57,7 @@ export async function createSalesOrder(input: {
   taxTreatment: string;
   isPreOrder: boolean;
   tags?: string[]; // free text labels from the channel or the form
+  source?: "UI" | "API" | "PORTAL"; // provenance, defaults UI
   notes: string | null;
   lines: NewSalesOrderLine[];
 }): Promise<ActionResult> {
@@ -113,6 +114,7 @@ export async function createSalesOrder(input: {
           : "EXCLUSIVE",
         isPreOrder: input.isPreOrder,
         tags: normalizeTags(input.tags),
+        source: input.source ?? "UI",
         notes: input.notes?.trim() || null,
         // originalQty preserves what the customer asked for, forever.
         lines: {
@@ -216,6 +218,7 @@ async function outstandingByOrderLine(orderId: string): Promise<Map<string, numb
 export async function createDespatch(
   orderId: string,
   lines: { orderLineId: string; quantity: number }[],
+  source: "UI" | "API" = "UI",
 ): Promise<ActionResult> {
   const order = await db.salesOrder.findUnique({ where: { id: orderId } });
   if (!order) return { ok: false, error: "Sales order not found" };
@@ -242,6 +245,7 @@ export async function createDespatch(
     await db.$transaction(async (tx) => {
       await tx.despatch.create({
         data: {
+          source,
           reference: await nextRef("despatch", count),
           salesOrderId: orderId,
           shippingService: order.shippingService,

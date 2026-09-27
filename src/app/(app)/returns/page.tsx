@@ -107,6 +107,11 @@ export default async function ReturnsPage() {
                     <TableRow key={rma.id}>
                       <TableCell className="pl-6 font-mono text-xs font-semibold">
                         {rma.reference}
+                        {rma.source === "PORTAL" ? (
+                          <Badge className="ml-2 border-transparent bg-sky-100 px-1.5 py-0 text-[10px] font-sans text-sky-800">
+                            Portal
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <Link

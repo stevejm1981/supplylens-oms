@@ -277,6 +277,7 @@ export async function POST(request: Request) {
     taxTreatment: payload.taxTreatment ?? (await getSettings()).defaultTaxTreatment,
     isPreOrder: payload.preOrder ?? false,
     tags: payload.tags,
+    source: "API",
     notes: payload.notes ?? null,
     lines: payload.lines.map((l) => {
       const { product, uom } = resolveLine(l)!;

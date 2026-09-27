@@ -153,6 +153,11 @@ export default async function SalesOrderPage({
             {tag}
           </Badge>
         ))}
+        {order.source !== "UI" ? (
+          <Badge className="border-transparent bg-sky-100 text-sky-800">
+            {order.source === "API" ? "via API" : "Portal"}
+          </Badge>
+        ) : null}
         {order.status !== "DRAFT" ? <StatusBadge status={fulfilment} /> : null}
         <SoActions id={order.id} status={order.status} fullyDespatched={fullyDespatched} />
         {order.status === "DRAFT" ? (

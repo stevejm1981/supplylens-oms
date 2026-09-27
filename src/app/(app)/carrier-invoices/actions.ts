@@ -31,6 +31,7 @@ export async function createCarrierInvoice(input: {
   carrier: string;
   invoiceDate: string | null;
   notes: string | null;
+  source?: "UI" | "API"; // provenance, defaults UI
   lines: NewCarrierInvoiceLine[];
 }): Promise<ActionResult> {
   if (!input.reference.trim() || !input.carrier.trim()) {
@@ -184,6 +185,7 @@ export async function createCarrierInvoice(input: {
           carrier: input.carrier.trim(),
           invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : new Date(),
           notes: input.notes?.trim() || null,
+          source: input.source ?? "UI",
         },
       });
       for (const l of resolvedLines) {

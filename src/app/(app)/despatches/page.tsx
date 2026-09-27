@@ -75,6 +75,11 @@ export default async function DespatchesPage() {
                   <TableRow key={d.id}>
                     <TableCell className="pl-6 font-mono text-xs font-semibold">
                       {d.reference}
+                      {d.source === "API" ? (
+                        <Badge className="ml-2 border-transparent bg-sky-100 px-1.5 py-0 text-[10px] font-sans text-sky-800">
+                          API
+                        </Badge>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <Link

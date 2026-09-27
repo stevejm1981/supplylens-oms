@@ -143,6 +143,7 @@ export async function portalPlaceOrder(input: {
     (await db.warehouse.findFirstOrThrow({ where: { isDefault: true } })).id;
 
   const result = await createSalesOrder({
+    source: "PORTAL",
     customerId: customer.id,
     salesPersonId: customer.defaultSalesPersonId,
     warehouseId,
@@ -189,6 +190,7 @@ export async function portalRequestReturn(input: {
   }
   if (!input.reason.trim()) return { ok: false, error: "Tell us why you are returning it" };
   const result = await createCustomerReturn({
+    source: "PORTAL",
     salesOrderId: order.id,
     warehouseId: order.warehouseId,
     reason: `Portal request by ${buyer.name}: ${input.reason.trim()}`,

@@ -6,6 +6,7 @@ import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { ConfirmDelete } from "@/components/confirm-delete";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -96,6 +97,11 @@ export default async function CarrierInvoicesPage() {
                         >
                           {inv.reference}
                         </Link>
+                        {inv.source === "API" ? (
+                          <Badge className="ml-2 border-transparent bg-sky-100 px-1.5 py-0 text-[10px] font-sans text-sky-800">
+                            API
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell className="font-medium">{inv.carrier}</TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">

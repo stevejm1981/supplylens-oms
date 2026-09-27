@@ -99,6 +99,11 @@ export default async function SalesOrdersPage() {
                         >
                           {o.reference}
                         </Link>
+                        {o.source !== "UI" ? (
+                          <Badge className="ml-2 border-transparent bg-sky-100 px-1.5 py-0 text-[10px] text-sky-800">
+                            {o.source === "API" ? "API" : "Portal"}
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell className="font-medium">{o.customer.name}</TableCell>
                       <TableCell className="text-muted-foreground">

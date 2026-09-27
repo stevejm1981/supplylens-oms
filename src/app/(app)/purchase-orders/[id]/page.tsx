@@ -224,6 +224,7 @@ export default async function PurchaseOrderPage({
                     <span className="font-mono text-xs font-semibold">{r.reference}</span>
                     <span className="text-xs text-muted-foreground">
                       {dateFmt.format(r.receivedAt)} · {r.warehouse.name}
+                      {r.source === "API" ? " · via API" : ""}
                     </span>
                     {r.lines.map((l) => (
                       <span key={l.id} className="rounded bg-secondary px-1.5 py-0.5 text-xs">

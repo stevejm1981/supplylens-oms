@@ -24,6 +24,7 @@ function revalidateReturns(orderId?: string) {
 // ── Customer returns (RMA) ──────────────────────────────────────────────────
 
 export async function createCustomerReturn(input: {
+  source?: "UI" | "PORTAL"; // provenance, defaults UI
   salesOrderId: string;
   warehouseId: string;
   reason: string | null;
@@ -61,6 +62,7 @@ export async function createCustomerReturn(input: {
     });
     await db.customerReturn.create({
       data: {
+        source: input.source ?? "UI",
         reference: await nextRef("customerReturn", count),
         salesOrderId: order.id,
         warehouseId: input.warehouseId,

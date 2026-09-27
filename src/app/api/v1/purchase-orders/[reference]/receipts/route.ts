@@ -83,7 +83,7 @@ export async function POST(
 
   // No lines → the whole-delivery path, everything outstanding in one go.
   if (!Array.isArray(payload.lines) || payload.lines.length === 0) {
-    const result = await receivePurchaseOrder(po.id, warehouse.id);
+    const result = await receivePurchaseOrder(po.id, warehouse.id, "API");
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 422 });
     }
@@ -153,6 +153,7 @@ export async function POST(
     poId: po.id,
     warehouseId: warehouse.id,
     notes: payload.notes ?? null,
+    source: "API",
     lines: resolved,
   });
   if (!result.ok) {

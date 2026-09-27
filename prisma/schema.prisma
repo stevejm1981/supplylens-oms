@@ -282,6 +282,7 @@ model GoodsReceipt {
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
   receivedAt    DateTime      @default(now())
   notes         String?
+  source        String        @default("UI") // "UI" | "API"
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @default(now()) @updatedAt
 
@@ -692,6 +693,9 @@ model SalesOrder {
   // "gift-wrap", "priority", a marketplace programme. Displayed as chips and
   // passed through the API untouched; no behaviour ever branches on a tag.
   tags          String[]    @default([])
+  // Who created the record: "UI" (a person here), "API" (an integration),
+  // or "PORTAL" (a trade buyer). Provenance, shown as a badge when not UI.
+  source        String      @default("UI")
   orderDate     DateTime    @default(now())
   requiredDate  DateTime?
   dispatchedAt  DateTime?
@@ -776,6 +780,7 @@ model Despatch {
   // confirmation, cost to serve). Distinct from SalesOrder.shippingPence,
   // which is the carriage charged TO the customer (revenue).
   expectedCarriagePence Int?
+  source       String     @default("UI") // "UI" | "API" (a WMS/3PL confirmation)
   createdAt    DateTime   @default(now())
   updatedAt DateTime @default(now()) @updatedAt
   pickedAt     DateTime?
@@ -798,6 +803,7 @@ model CarrierInvoice {
   carrier     String // "Palletways", "DPD"…
   invoiceDate DateTime @default(now())
   notes       String?
+  source      String   @default("UI") // "UI" | "API"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
@@ -865,6 +871,7 @@ model CustomerReturn {
   warehouse    Warehouse  @relation(fields: [warehouseId], references: [id])
   status       String     @default("AWAITING") // "AWAITING" | "RECEIVED"
   reason       String?
+  source       String     @default("UI") // "UI" | "PORTAL" (a buyer's return request)
   createdAt    DateTime   @default(now())
   updatedAt DateTime @default(now()) @updatedAt
   receivedAt   DateTime?

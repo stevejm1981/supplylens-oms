@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       reference: inv.reference,
       carrier: inv.carrier,
       invoiceDate: inv.invoiceDate,
+      source: inv.source,
       notes: inv.notes,
       updatedAt: inv.updatedAt,
       totalPence: inv.lines.reduce((s, l) => s + l.amountPence, 0),
@@ -192,6 +193,7 @@ export async function POST(request: Request) {
     carrier: payload.carrier,
     invoiceDate: payload.invoiceDate ?? null,
     notes: payload.notes ?? null,
+    source: "API",
     lines,
   });
   if (!result.ok) {

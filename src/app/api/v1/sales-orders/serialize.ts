@@ -46,6 +46,7 @@ export async function serializeOrder(reference: string) {
     customer: order.customer.code,
     channel: order.channel?.code ?? null,
     warehouse: order.warehouse.code, // where the order fulfils from (fixed at creation)
+    source: order.source, // "UI" | "API" | "PORTAL", who created the record
     externalRef: order.externalRef,
     customerPoNumber: order.customerPoNumber,
     taxTreatment: order.taxTreatment,
@@ -84,6 +85,7 @@ export async function serializeOrder(reference: string) {
         shippingService: d.shippingService,
         trackingNumber: d.trackingNumber,
         despatchedAt: d.despatchedAt,
+        source: d.source,
         // Cost to serve: the accrual made at despatch and, once a carrier
         // invoice matches, the actual charge.
         expectedCarriagePence: d.expectedCarriagePence,

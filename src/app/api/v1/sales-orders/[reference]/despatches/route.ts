@@ -127,7 +127,7 @@ export async function POST(
   }
 
   // ── Run the full despatch lifecycle in one confirmed step ─────────────────
-  const created = await createDespatch(order.id, resolved);
+  const created = await createDespatch(order.id, resolved, "API");
   if (!created.ok) {
     return NextResponse.json({ ok: false, error: created.error }, { status: 422 });
   }
