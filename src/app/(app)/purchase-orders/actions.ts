@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { recordMovement } from "@/lib/stock-ledger";
 import { JOURNAL_ACCOUNTS, recordStockJournal } from "@/lib/journals";
 import { nextRef } from "@/lib/settings";
+import { receiptProgress } from "@/lib/engine/fefo";
 
 export type ActionResult =
-  | { ok: true; id?: string }
+  | { ok: true; id?: string; reference?: string; status?: string }
   | { ok: false; error: string };
 
 export interface NewPoLine {
@@ -62,81 +63,205 @@ export async function placePurchaseOrder(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function receivePurchaseOrder(
-  id: string,
-  warehouseId: string,
-): Promise<ActionResult> {
-  const warehouse = await db.warehouse.findUnique({ where: { id: warehouseId } });
+export interface GoodsReceiptLineInput {
+  poLineId: string;
+  quantity: number; // base units arriving in THIS delivery
+  batchRef?: string | null; // required for batch-tracked products (defaults to the GRN reference)
+  bestBefore?: string | null; // "yyyy-mm-dd", batch-tracked products only
+}
+
+/**
+ * Receive one physical delivery against a purchase order. Partial deliveries
+ * are the normal case: each call creates a GoodsReceipt document, moves only
+ * this delivery's stock (ledgered, with batches for tracked products), puts
+ * only this delivery's value onto the balance sheet, and walks the PO through
+ * PLACED → PARTIALLY_RECEIVED → RECEIVED via the receipt-progress engine.
+ */
+export async function receiveGoodsReceipt(input: {
+  poId: string;
+  warehouseId: string;
+  notes?: string | null;
+  lines: GoodsReceiptLineInput[];
+}): Promise<ActionResult> {
+  const warehouse = await db.warehouse.findUnique({ where: { id: input.warehouseId } });
   if (!warehouse) return { ok: false, error: "Choose a warehouse to receive into" };
   const po = await db.purchaseOrder.findUnique({
-    where: { id },
-    include: { lines: { include: { allocations: true } } },
+    where: { id: input.poId },
+    include: {
+      lines: {
+        include: {
+          allocations: true,
+          product: { select: { batchTracked: true, sku: true } },
+        },
+      },
+      receipts: { include: { lines: true } },
+    },
   });
   if (!po) return { ok: false, error: "Purchase order not found" };
-  if (po.status !== "PLACED") {
-    return { ok: false, error: "Only placed orders can be received" };
+  if (po.status !== "PLACED" && po.status !== "PARTIALLY_RECEIVED") {
+    return { ok: false, error: "Only placed or part-received orders can be received" };
   }
+  const poLineById = new Map(po.lines.map((l) => [l.id, l]));
+  const lines = input.lines.filter((l) => l.quantity > 0);
+  if (lines.length === 0) return { ok: false, error: "Nothing to receive" };
+  for (const l of lines) {
+    const poLine = poLineById.get(l.poLineId);
+    if (!poLine) return { ok: false, error: "Line does not belong to this purchase order" };
+    if (!Number.isInteger(l.quantity)) return { ok: false, error: "Quantities must be whole numbers" };
+  }
+
+  let grnReference = "";
+  let poStatus = po.status;
   try {
     await db.$transaction(async (tx) => {
-      for (const line of po.lines) {
+      const count = await tx.goodsReceipt.count();
+      const reference = await nextRef("goodsReceipt", count, tx);
+      grnReference = reference;
+      const receipt = await tx.goodsReceipt.create({
+        data: {
+          reference,
+          poId: po.id,
+          warehouseId: input.warehouseId,
+          notes: input.notes?.trim() || null,
+        },
+      });
+
+      let receiptValue = 0;
+      for (const l of lines) {
+        const poLine = poLineById.get(l.poLineId)!;
+
+        // Batch identity for tracked products: the operator's reference, or
+        // the GRN reference when none was given (receive-all paths). The
+        // best-before sticks from the batch's first sighting.
+        let batchId: string | null = null;
+        if (poLine.product.batchTracked) {
+          const batchRef = l.batchRef?.trim() || reference;
+          const batch = await tx.stockBatch.upsert({
+            where: { productId_batchRef: { productId: poLine.productId, batchRef } },
+            create: {
+              productId: poLine.productId,
+              batchRef,
+              bestBefore: l.bestBefore ? new Date(l.bestBefore) : null,
+              sourceType: "PO_RECEIPT",
+              sourceRef: reference,
+            },
+            update: {},
+          });
+          batchId = batch.id;
+        }
+
+        await tx.goodsReceiptLine.create({
+          data: {
+            receiptId: receipt.id,
+            poLineId: poLine.id,
+            productId: poLine.productId,
+            quantity: l.quantity,
+            batchId,
+          },
+        });
         await tx.stockLevel.upsert({
           where: {
-            productId_warehouseId: { productId: line.productId, warehouseId },
+            productId_warehouseId: {
+              productId: poLine.productId,
+              warehouseId: input.warehouseId,
+            },
           },
-          create: { productId: line.productId, warehouseId, quantity: line.quantity },
-          update: { quantity: { increment: line.quantity } },
+          create: {
+            productId: poLine.productId,
+            warehouseId: input.warehouseId,
+            quantity: l.quantity,
+          },
+          update: { quantity: { increment: l.quantity } },
         });
         await recordMovement(tx, {
-          productId: line.productId,
-          warehouseId,
-          quantity: line.quantity,
+          productId: poLine.productId,
+          warehouseId: input.warehouseId,
+          quantity: l.quantity,
           type: "PO_RECEIPT",
-          reference: po.reference,
+          reference,
           referenceId: po.id,
+          batchId,
+          notes: `${po.reference}`,
         });
+
+        // This delivery's share of value: goods at PO cost plus the per-unit
+        // share of landed costs already allocated to the line, so pre-receipt
+        // freight reaches the balance sheet exactly once across deliveries
+        // (post-receipt allocations journal their received share themselves).
+        const allocated = poLine.allocations.reduce((s, a) => s + a.amountPence, 0);
+        const perUnitShare = poLine.quantity > 0 ? allocated / poLine.quantity : 0;
+        receiptValue += l.quantity * poLine.unitCostPence + Math.round(l.quantity * perUnitShare);
       }
-      // Activate inbound holds in the SAME transaction as the receipt, there is
-      // no window where the landed stock is visible to channels before the hold.
+
+      // Activate inbound holds in the SAME transaction as the first receipt,
+      // there is no window where landed stock is visible to channels before
+      // the hold (later deliveries find nothing PENDING, so this fires once).
       await tx.stockReservation.updateMany({
-        where: { purchaseOrderId: id, status: "PENDING" },
-        data: { status: "ACTIVE", warehouseId },
+        where: { purchaseOrderId: po.id, status: "PENDING" },
+        data: { status: "ACTIVE", warehouseId: input.warehouseId },
       });
-      // Accounting shadow: stock onto the balance sheet at PO cost. (Landed
-      // cost invoices arriving later re-price averages, not this journal.)
-      // Goods at PO cost PLUS any landed costs already allocated to these
-      // lines, so pre-receipt freight bills land on the balance sheet exactly
-      // once (post-receipt ones journal at allocation time instead).
-      const receiptValue = po.lines.reduce(
-        (s, l) =>
-          s + l.quantity * l.unitCostPence + l.allocations.reduce((x, a) => x + a.amountPence, 0),
-        0,
-      );
+
       await recordStockJournal(tx, {
         type: "PO_RECEIPT",
-        sourceRef: po.reference,
+        sourceRef: reference,
         sourceId: po.id,
-        memo: `Goods received ${po.reference} into ${warehouse.name}`,
+        memo: `Goods received ${reference} (${po.reference}) into ${warehouse.name}`,
         lines: [
           { account: JOURNAL_ACCOUNTS.stock, debitPence: receiptValue },
           { account: JOURNAL_ACCOUNTS.grni, creditPence: receiptValue },
         ],
       });
+
+      const priorLines = po.receipts.flatMap((r) => r.lines);
+      const progress = receiptProgress(
+        po.lines.map((l) => ({ id: l.id, quantity: l.quantity })),
+        [
+          ...priorLines.map((r) => ({ poLineId: r.poLineId, quantity: r.quantity })),
+          ...lines.map((l) => ({ poLineId: l.poLineId, quantity: l.quantity })),
+        ],
+      );
+      poStatus = progress.status;
       await tx.purchaseOrder.update({
-        where: { id },
-        data: { status: "RECEIVED", receivedAt: new Date() },
+        where: { id: po.id },
+        data: {
+          status: progress.status,
+          ...(progress.status === "RECEIVED" ? { receivedAt: new Date() } : {}),
+        },
       });
     });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Receive failed" };
   }
   revalidatePath("/purchase-orders");
-  revalidatePath(`/purchase-orders/${id}`);
+  revalidatePath(`/purchase-orders/${input.poId}`);
+  revalidatePath("/goods-in-station");
   revalidatePath("/stock");
   revalidatePath("/products");
   revalidatePath("/movements");
   revalidatePath("/reservations");
   revalidatePath("/channels");
-  return { ok: true };
+  return { ok: true, reference: grnReference, status: poStatus };
+}
+
+/** Receive everything still outstanding in one delivery (the PO page button). */
+export async function receivePurchaseOrder(
+  id: string,
+  warehouseId: string,
+): Promise<ActionResult> {
+  const po = await db.purchaseOrder.findUnique({
+    where: { id },
+    include: { lines: true, receipts: { include: { lines: true } } },
+  });
+  if (!po) return { ok: false, error: "Purchase order not found" };
+  const progress = receiptProgress(
+    po.lines.map((l) => ({ id: l.id, quantity: l.quantity })),
+    po.receipts.flatMap((r) => r.lines.map((x) => ({ poLineId: x.poLineId, quantity: x.quantity }))),
+  );
+  const lines = po.lines
+    .map((l) => ({ poLineId: l.id, quantity: progress.outstandingByLine.get(l.id) ?? 0 }))
+    .filter((l) => l.quantity > 0);
+  if (lines.length === 0) return { ok: false, error: "Nothing left to receive" };
+  return receiveGoodsReceipt({ poId: id, warehouseId, lines });
 }
 
 export async function deletePurchaseOrder(id: string): Promise<ActionResult> {
@@ -145,8 +270,8 @@ export async function deletePurchaseOrder(id: string): Promise<ActionResult> {
     include: { costInvoices: true },
   });
   if (!po) return { ok: false, error: "Purchase order not found" };
-  if (po.status === "RECEIVED") {
-    return { ok: false, error: "Received orders cannot be deleted" };
+  if (po.status === "RECEIVED" || po.status === "PARTIALLY_RECEIVED") {
+    return { ok: false, error: "Orders with received stock cannot be deleted" };
   }
   if (po.costInvoices.length > 0) {
     return { ok: false, error: "Detach cost invoices before deleting" };

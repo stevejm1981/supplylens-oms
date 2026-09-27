@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getFefoBatches, makeFefoSuggester } from "@/lib/batches";
 import { PageHeader } from "@/components/page-header";
 import { Station } from "./station";
 
@@ -6,6 +7,7 @@ import { Station } from "./station";
 // formatting dates during SSR hydrates against the browser's own date tables,
 // which can render "Sept" vs "Sep" and trip a hydration mismatch.
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" });
+const bbeFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 export default async function DespatchStationPage() {
   const orders = await db.salesOrder.findMany({
@@ -23,6 +25,7 @@ export default async function DespatchStationPage() {
               barcode: true,
               weightGrams: true,
               type: true,
+              batchTracked: true,
               uoms: { select: { code: true, barcode: true, unitsPerUom: true } },
             },
           },
@@ -31,6 +34,24 @@ export default async function DespatchStationPage() {
       despatches: { include: { lines: true } },
     },
   });
+
+  // FEFO "take lot" notes per line: one depleting pool per warehouse, walked
+  // in queue order, so two queued orders never point at the same units.
+  const trackedIds = new Set<string>();
+  for (const o of orders) {
+    for (const l of o.lines) {
+      if (l.product.type !== "BUNDLE" && l.product.batchTracked) trackedIds.add(l.productId);
+    }
+  }
+  const suggesters = new Map<string, ReturnType<typeof makeFefoSuggester>>();
+  if (trackedIds.size > 0) {
+    for (const warehouseId of new Set(orders.map((o) => o.warehouseId))) {
+      suggesters.set(
+        warehouseId,
+        makeFefoSuggester(await getFefoBatches({ productIds: [...trackedIds], warehouseId })),
+      );
+    }
+  }
 
   const queue = orders
     .map((o) => {
@@ -62,6 +83,16 @@ export default async function DespatchStationPage() {
             const uom = l.uomCode
               ? l.product.uoms.find((u) => u.code === l.uomCode)
               : null;
+            const outstanding = l.quantity - (planned.get(l.id) ?? 0);
+            const batchNote =
+              outstanding > 0 && l.product.type !== "BUNDLE" && l.product.batchTracked
+                ? (suggesters.get(o.warehouseId)?.(l.productId, outstanding * l.unitsPerUom) ?? [])
+                    .map(
+                      (b) =>
+                        `Take lot ${b.batchRef}${b.bestBefore ? ` (BBE ${bbeFmt.format(b.bestBefore)})` : ""} ×${b.quantity}`,
+                    )
+                    .join(", ")
+                : "";
             return {
               orderLineId: l.id,
               sku: l.product.sku,
@@ -72,7 +103,8 @@ export default async function DespatchStationPage() {
               productBarcode: l.product.barcode,
               outerBarcode: uom?.barcode ?? null,
               unitWeightGrams: l.product.weightGrams * l.unitsPerUom,
-              outstanding: l.quantity - (planned.get(l.id) ?? 0),
+              outstanding,
+              batchNote: batchNote || null,
             };
           })
           .filter((l) => l.outstanding > 0),

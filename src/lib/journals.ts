@@ -14,7 +14,9 @@ export type StockJournalType =
   | "PRODUCTION"
   | "LANDED_COST"
   | "SUPPLIER_RETURN"
-  | "OPENING";
+  | "OPENING"
+  | "CARRIAGE_ACCRUAL"
+  | "CARRIAGE_COST";
 
 export interface JournalLineInput {
   account: string;
@@ -73,4 +75,6 @@ export const JOURNAL_ACCOUNTS = {
   landedClearing: "Landed Costs Clearing",
   supplierCredits: "Supplier Credits Due",
   openingBalances: "Opening Balances",
+  costToServe: "Cost to Serve",
+  carriageAccrual: "Carriage Accruals",
 } as const;

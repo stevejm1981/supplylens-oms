@@ -20,16 +20,23 @@ export interface ProductTranche extends CostTranche {
 }
 
 /**
- * Cost tranches per product: opening stock + every RECEIVED PO line at its
+ * Cost tranches per product: opening stock + every RECEIVED quantity at its
  * landed unit cost (base + allocated invoice costs). Computed on demand so
  * cost invoices attached after receipt re-price history correctly.
+ * Receipts are the tranche source (partial deliveries create partial
+ * tranches); RECEIVED orders predating goods-receipt documents fall back to
+ * their whole lines so history keeps its cost.
  */
 export async function getTranchesByProduct(): Promise<Map<string, ProductTranche[]>> {
   const [levels, receivedLines, completedBuilds] = await Promise.all([
     db.stockLevel.findMany({ include: { warehouse: { select: { name: true } } } }),
     db.purchaseOrderLine.findMany({
-      where: { purchaseOrder: { status: "RECEIVED" } },
-      include: { allocations: true, purchaseOrder: { select: { reference: true } } },
+      where: { purchaseOrder: { status: { in: ["PARTIALLY_RECEIVED", "RECEIVED"] } } },
+      include: {
+        allocations: true,
+        receiptLines: { select: { quantity: true } },
+        purchaseOrder: { select: { reference: true, status: true } },
+      },
     }),
     db.productionOrder.findMany({
       where: { status: "COMPLETED" },
@@ -55,9 +62,17 @@ export async function getTranchesByProduct(): Promise<Map<string, ProductTranche
   }
   for (const line of receivedLines) {
     const allocated = line.allocations.reduce((s, a) => s + a.amountPence, 0);
+    const receivedQty = line.receiptLines.reduce((s, r) => s + r.quantity, 0);
+    const trancheQty =
+      receivedQty > 0
+        ? Math.min(receivedQty, line.quantity)
+        : line.purchaseOrder.status === "RECEIVED"
+          ? line.quantity // legacy whole-order receive, no receipt documents
+          : 0;
+    if (trancheQty <= 0) continue;
     push(line.productId, {
       label: line.purchaseOrder.reference,
-      quantity: line.quantity,
+      quantity: trancheQty,
       unitCostPence: landedUnitCostPence(line.unitCostPence, line.quantity, allocated),
     });
   }
@@ -130,7 +145,8 @@ export async function getAvailability(): Promise<{
       },
     }),
     db.purchaseOrderLine.findMany({
-      where: { purchaseOrder: { status: "PLACED" } },
+      where: { purchaseOrder: { status: { in: ["PLACED", "PARTIALLY_RECEIVED"] } } },
+      include: { receiptLines: { select: { quantity: true } } },
     }),
   ]);
 
@@ -180,7 +196,9 @@ export async function getAvailability(): Promise<{
   }
 
   for (const line of inboundLines) {
-    at(byProduct, line.productId).onOrder += line.quantity;
+    // Only what is still inbound: partial deliveries reduce onOrder as they land.
+    const received = line.receiptLines.reduce((s, r) => s + r.quantity, 0);
+    at(byProduct, line.productId).onOrder += Math.max(0, line.quantity - received);
   }
 
   for (const map of [byProduct, byProductWarehouse]) {

@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/table";
 import { PoActions } from "./po-actions";
 
+const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
 const COST_TYPES = ["FREIGHT", "DUTY", "INSURANCE", "HANDLING", "OTHER"] as const;
 const typeLabels: Record<string, string> = {
   FREIGHT: "Freight",
@@ -48,6 +50,18 @@ export default async function PurchaseOrderPage({
         supplier: true,
         lines: { include: { product: true, allocations: { include: { costInvoice: true } } } },
         costInvoices: { include: { costInvoice: true } },
+        receipts: {
+          orderBy: { receivedAt: "asc" },
+          include: {
+            warehouse: { select: { name: true } },
+            lines: {
+              include: {
+                product: { select: { sku: true } },
+                batch: { select: { batchRef: true, bestBefore: true } },
+              },
+            },
+          },
+        },
         reservations: {
           where: { status: { in: ["PENDING", "ACTIVE"] } },
           include: {
@@ -191,6 +205,42 @@ export default async function PurchaseOrderPage({
             </Table>
           </CardContent>
         </Card>
+
+        {po.receipts.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Deliveries
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  each goods receipt moved its own stock and journal, partial
+                  deliveries are first-class
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="grid gap-2 text-sm">
+                {po.receipts.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-semibold">{r.reference}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {dateFmt.format(r.receivedAt)} · {r.warehouse.name}
+                    </span>
+                    {r.lines.map((l) => (
+                      <span key={l.id} className="rounded bg-secondary px-1.5 py-0.5 text-xs">
+                        <span className="font-mono">{l.product.sku}</span> ×{l.quantity}
+                        {l.batch
+                          ? ` · lot ${l.batch.batchRef}${
+                              l.batch.bestBefore ? ` (BBE ${dateFmt.format(l.batch.bestBefore)})` : ""
+                            }`
+                          : ""}
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           {po.reservations.length > 0 ? (

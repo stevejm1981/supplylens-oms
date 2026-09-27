@@ -6,6 +6,7 @@
 
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { getFefoBatches, makeFefoSuggester, type BatchSuggestion } from "@/lib/batches";
 import { AutoPrint } from "../[despatchId]/auto-print";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", {
@@ -32,7 +33,13 @@ export default async function JobListPage({
         include: {
           product: {
             include: {
-              bomLines: { include: { component: { select: { sku: true, name: true, barcode: true } } } },
+              bomLines: {
+                include: {
+                  component: {
+                    select: { sku: true, name: true, barcode: true, batchTracked: true },
+                  },
+                },
+              },
               uoms: { select: { code: true, barcode: true } },
             },
           },
@@ -50,6 +57,8 @@ export default async function JobListPage({
     name: string;
     unit: string; // "Each" or "PACK6 (6 ea)"
     barcode: string;
+    productId: string;
+    batchTracked: boolean;
     qty: number; // in the grab unit
     baseQty: number; // eaches
     from: Map<string, number>; // order reference → qty
@@ -106,6 +115,8 @@ export default async function JobListPage({
               name: bom.component.name,
               unit: "Each",
               barcode: bom.component.barcode ?? ", ",
+              productId: bom.componentId,
+              batchTracked: bom.component.batchTracked,
             },
             o.reference,
             bom.quantity * outstanding,
@@ -129,6 +140,8 @@ export default async function JobListPage({
             name: product.name,
             unit,
             barcode: outer?.barcode ?? product.barcode ?? ", ",
+            productId: product.id,
+            batchTracked: product.batchTracked,
           },
           o.reference,
           outstanding,
@@ -143,6 +156,22 @@ export default async function JobListPage({
 
   const grabRows = [...grab.values()].sort((a, b) => a.sku.localeCompare(b.sku));
   const totalUnits = grabRows.reduce((s, r) => s + r.baseQty, 0);
+
+  // FEFO "take lot" suggestions for tracked products, scoped to the batch's
+  // warehouse (job lists are batch picks from one warehouse in practice, so
+  // the first order's warehouse is the walk).
+  const trackedIds = grabRows.filter((r) => r.batchTracked).map((r) => r.productId);
+  const suggest = makeFefoSuggester(
+    trackedIds.length > 0
+      ? await getFefoBatches({ productIds: trackedIds, warehouseId: orders[0].warehouseId })
+      : new Map(),
+  );
+  const batchesByRow = new Map<string, BatchSuggestion[]>(
+    grabRows.map((r) => [
+      `${r.sku}|${r.unit}`,
+      r.batchTracked ? suggest(r.productId, r.baseQty) : [],
+    ]),
+  );
 
   return (
     <main className="mx-auto max-w-3xl bg-white p-8 font-sans text-sm text-slate-900 print:p-0">
@@ -185,6 +214,12 @@ export default async function JobListPage({
                 <span className="block text-xs text-slate-500">
                   {[...r.from.entries()].map(([ref, qty]) => `${ref} ×${qty}`).join(" · ")}
                 </span>
+                {(batchesByRow.get(`${r.sku}|${r.unit}`) ?? []).map((b) => (
+                  <span key={b.batchRef} className="block text-xs font-semibold">
+                    Take lot {b.batchRef}
+                    {b.bestBefore ? ` (BBE ${dateFmt.format(b.bestBefore)})` : ""} ×{b.quantity}
+                  </span>
+                ))}
               </td>
               <td className="py-2.5 text-xs">{r.unit}</td>
               <td className="py-2.5 text-right">

@@ -96,7 +96,11 @@ export async function finishPicking(
 
 export async function confirmStationDespatch(
   despatchId: string,
-  shipping: { shippingService?: string | null; trackingNumber?: string | null },
+  shipping: {
+    shippingService?: string | null;
+    trackingNumber?: string | null;
+    expectedCarriagePence?: number | null;
+  },
 ) {
   return despatchDespatch(despatchId, shipping);
 }

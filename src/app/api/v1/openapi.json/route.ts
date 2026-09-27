@@ -369,7 +369,7 @@ const spec = {
         summary: "Despatch confirmation (the WMS/3PL shipped goods)",
         tags: ["Fulfilment"],
         description:
-          "One call runs the whole despatch lifecycle: creates the despatch document, deducts stock (bundles exploded, packs converted), consumes customer reservations, snapshots COGS at average landed cost, writes the movement ledger and the DESPATCH_COGS stock journal, and updates fulfilment state. Lines match order lines by sku/barcode (+optional uom); quantities are in the ordered unit and may be partial. Idempotent per (order, externalRef), DESADV re-sends return the existing despatch.",
+          "One call runs the whole despatch lifecycle: creates the despatch document, deducts stock (bundles exploded, packs converted), consumes customer reservations, snapshots COGS at average landed cost, writes the movement ledger and the DESPATCH_COGS stock journal, and updates fulfilment state. Lines match order lines by sku/barcode (+optional uom); quantities are in the ordered unit and may be partial. Optional expectedCarriagePence accrues the carrier's expected charge as cost to serve (CARRIAGE_ACCRUAL journal) for later matching by a carrier invoice. Idempotent per (order, externalRef), DESADV re-sends return the existing despatch.",
         parameters: [
           { name: "reference", in: "path", required: true, schema: { type: "string" }, example: "SO-0017" },
         ],
@@ -378,9 +378,10 @@ const spec = {
           content: {
             "application/json": {
               example: {
-                externalRef: "MINTSOFT-SHP-88123",
+                externalRef: "WMS-SHP-88123",
                 shippingService: "DPD Next Day",
                 trackingNumber: "15501999888",
+                expectedCarriagePence: 4500,
                 lines: [{ sku: "GRD-TONGS-01", uom: "PACK6", quantity: 16 }],
               },
             },
@@ -394,23 +395,79 @@ const spec = {
     },
     "/purchase-orders/{reference}/receipts": {
       post: {
-        summary: "Goods-in confirmation (warehouse received a placed PO)",
+        summary: "Goods-in confirmation (a delivery arrived against a placed PO)",
         tags: ["Fulfilment"],
         description:
-          "Books the whole PO into stock in one transaction: levels move, PO_RECEIPT ledger entries are written, pending inbound reservation holds activate with zero gap, the PO_RECEIPT stock journal is written and the PO locks. Idempotent: re-receiving returns duplicate.",
+          "Books a delivery into stock in one transaction: levels move, PO_RECEIPT ledger entries are written (with batch/lot references for batch-tracked products), pending inbound reservation holds activate with zero gap, this delivery's PO_RECEIPT stock journal is written, and the PO walks PLACED, PARTIALLY_RECEIVED, RECEIVED. Without lines, everything outstanding is received in one go (backwards compatible). With lines, only that delivery is received: each line resolves by sku or barcode, quantity is BASE UNITS, and batch-tracked products take batchRef (defaults to the GRN reference) plus optional bestBefore. The response includes the created goodsReceipt (GRN) reference. Idempotent: re-receiving a fully received PO returns duplicate.",
         parameters: [
           { name: "reference", in: "path", required: true, schema: { type: "string" }, example: "PO-0003" },
         ],
         requestBody: {
           content: {
             "application/json": {
-              example: { warehouse: "NTH" },
+              examples: {
+                receiveAllOutstanding: { value: { warehouse: "NTH" } },
+                partialDeliveryWithBatches: {
+                  value: {
+                    warehouse: "NTH",
+                    notes: "First of two pallets",
+                    lines: [
+                      { sku: "KOM-GIN-330", quantity: 600, batchRef: "LOT-2609", bestBefore: "2027-03-31" },
+                      { barcode: "5060123456789", quantity: 120 },
+                    ],
+                  },
+                },
+              },
             },
           },
         },
         responses: {
-          "201": { description: "Received into the given (or default) warehouse" },
-          "422": { description: "PO is a draft, or the warehouse code is unknown" },
+          "201": {
+            description:
+              "Delivery received; returns goodsReceipt reference and the PO's new status (PARTIALLY_RECEIVED or RECEIVED)",
+          },
+          "422": { description: "PO is a draft, a line is not on the PO, or the warehouse code is unknown" },
+        },
+      },
+    },
+    "/carrier-invoices": {
+      get: {
+        summary: "Carrier invoices matched to sales orders (cost to serve)",
+        tags: ["Accounting"],
+        description:
+          "Every carrier bill with its charge lines and per-despatch allocations: order reference, tracking, accrued vs actual carriage, and the variance. The register behind 'has the carrier invoiced this SO yet?'.",
+        parameters: [{ $ref: "#/components/parameters/updatedSince" }],
+        responses: { "200": { description: "Invoices with lines, allocations, and variances" } },
+      },
+      post: {
+        summary: "Match a carrier's invoice to the sales orders it delivered",
+        tags: ["Accounting"],
+        description:
+          "The SupplyLens intake for carrier billing: one invoice, one line per consignment, each line resolving its despatches by tracking number, despatch reference, or sales-order reference (when the order has exactly one despatched shipment). Give every despatch an explicit amountPence, or omit amounts and set method (VALUE, WEIGHT, or QUANTITY for an equal split) to divide a consolidated consignment. Matching books the variance against each despatch's accrued expected carriage via the CARRIAGE_COST journal; code the carrier's bill to Carriage Accruals in the ledger app. Idempotent on the carrier's invoice reference.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              example: {
+                reference: "PW-INV-88231",
+                carrier: "Palletways",
+                invoiceDate: "2026-09-26",
+                lines: [
+                  {
+                    consignmentRef: "PW8827741",
+                    description: "2 pallets, zone 3",
+                    amountPence: 9600,
+                    method: "VALUE",
+                    despatches: [{ tracking: "PW8827741" }, { order: "SO-0009" }],
+                  },
+                ],
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Matched; variances journalled (duplicate: true when the reference already exists)" },
+          "422": { description: "A despatch reference did not resolve, or amounts do not sum to the line" },
         },
       },
     },

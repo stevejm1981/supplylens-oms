@@ -42,11 +42,17 @@ async function wipe() {
   await db.warehouseTransferLine.deleteMany();
   await db.warehouseTransfer.deleteMany();
   await db.stockMovement.deleteMany();
+  await db.goodsReceiptLine.deleteMany();
+  await db.goodsReceipt.deleteMany();
+  await db.stockBatch.deleteMany();
   await db.customerReturnLine.deleteMany();
   await db.customerReturn.deleteMany();
   await db.supplierReturnLine.deleteMany();
   await db.supplierReturn.deleteMany();
   await db.customerLocation.deleteMany();
+  await db.carrierAllocation.deleteMany();
+  await db.carrierInvoiceLine.deleteMany();
+  await db.carrierInvoice.deleteMany();
   await db.despatchLine.deleteMany();
   await db.despatch.deleteMany();
   await db.creditNoteLine.deleteMany();
@@ -81,6 +87,7 @@ async function logMove(
   reference: string,
   referenceId: string | null,
   when: Date,
+  batchId: string | null = null,
 ) {
   const level = await db.stockLevel.findUnique({
     where: { productId_warehouseId: { productId, warehouseId } },
@@ -94,6 +101,7 @@ async function logMove(
       type,
       reference,
       referenceId,
+      batchId,
       createdAt: when,
     },
   });
@@ -492,6 +500,105 @@ async function main() {
       },
     },
   });
+
+  // ── Batch-tracked drinks: the goods-in and FEFO story ────────────────────
+  // A local beverages supplier and two batch-tracked SKUs. PO-0004 arrives in
+  // TWO deliveries at the Goods-In Station: GRN-0001 brings the older lots,
+  // GRN-0002 a fresher elderflower lot. The ginger line stays short, so the
+  // station queue keeps a live part-received PO, and despatch pick lists
+  // suggest the older elderflower lot first (FEFO).
+  {
+    const fenland = await db.supplier.create({
+      data: {
+        name: "Fenland Beverages Ltd",
+        code: "FBL",
+        country: "GB",
+        contactEmail: "orders@fenlandbev.co.uk",
+        leadTimeDays: 10,
+      },
+    });
+    const drinkData = [
+      { sku: "DRK-ELDER-750", name: "Elderflower Pressé 750ml", weightGrams: 1250, baseCost: 1.45, sell: 3.99, barcode: "5060871330141" },
+      { sku: "DRK-GINGER-330", name: "Ginger Brew 330ml", weightGrams: 560, baseCost: 0.82, sell: 2.49, barcode: "5060871330158" },
+    ] as const;
+    for (const d of drinkData) {
+      const created = await db.product.create({
+        data: {
+          sku: d.sku,
+          name: d.name,
+          barcode: d.barcode,
+          weightGrams: d.weightGrams,
+          baseCostPence: gbp(d.baseCost),
+          sellPricePence: gbp(d.sell),
+          supplierId: fenland.id,
+          type: "STANDARD",
+          batchTracked: true,
+        },
+      });
+      products.set(d.sku, created);
+    }
+
+    const po4 = await db.purchaseOrder.create({
+      data: {
+        reference: "PO-0004",
+        supplierId: fenland.id,
+        status: "PARTIALLY_RECEIVED",
+        expectedDate: daysAhead(3),
+        placedAt: daysAgo(12),
+        notes: "Weekly drinks replenishment, balance of the ginger due on the next van",
+        lines: {
+          create: [
+            { productId: pid("DRK-ELDER-750"), quantity: 240, unitCostPence: gbp(1.45) },
+            { productId: pid("DRK-GINGER-330"), quantity: 480, unitCostPence: gbp(0.82) },
+          ],
+        },
+      },
+      include: { lines: true },
+    });
+    const elderLine = po4.lines.find((l) => l.productId === pid("DRK-ELDER-750"))!;
+    const gingerLine = po4.lines.find((l) => l.productId === pid("DRK-GINGER-330"))!;
+
+    const lotElderOld = await db.stockBatch.create({
+      data: { productId: pid("DRK-ELDER-750"), batchRef: "ELD-2547", bestBefore: daysAhead(45), receivedAt: daysAgo(10), sourceType: "PO_RECEIPT", sourceRef: "GRN-0001" },
+    });
+    const lotElderNew = await db.stockBatch.create({
+      data: { productId: pid("DRK-ELDER-750"), batchRef: "ELD-2551", bestBefore: daysAhead(160), receivedAt: daysAgo(4), sourceType: "PO_RECEIPT", sourceRef: "GRN-0002" },
+    });
+    const lotGinger = await db.stockBatch.create({
+      data: { productId: pid("DRK-GINGER-330"), batchRef: "GIN-8812", bestBefore: daysAhead(90), receivedAt: daysAgo(10), sourceType: "PO_RECEIPT", sourceRef: "GRN-0001" },
+    });
+
+    const receiveSeedLine = async (
+      grnRef: string,
+      poLineId: string,
+      productId: string,
+      quantity: number,
+      batchId: string,
+      when: Date,
+      receiptId: string,
+    ) => {
+      await db.goodsReceiptLine.create({
+        data: { receiptId, poLineId, productId, quantity, batchId },
+      });
+      await db.stockLevel.upsert({
+        where: { productId_warehouseId: { productId, warehouseId: northampton.id } },
+        create: { productId, warehouseId: northampton.id, quantity },
+        update: { quantity: { increment: quantity } },
+      });
+      await logMove(productId, northampton.id, quantity, "PO_RECEIPT", grnRef, po4.id, when, batchId);
+    };
+
+    const grn1 = await db.goodsReceipt.create({
+      data: { reference: "GRN-0001", poId: po4.id, warehouseId: northampton.id, receivedAt: daysAgo(10), notes: "First pallet" },
+    });
+    await receiveSeedLine("GRN-0001", elderLine.id, pid("DRK-ELDER-750"), 120, lotElderOld.id, daysAgo(10), grn1.id);
+    await receiveSeedLine("GRN-0001", gingerLine.id, pid("DRK-GINGER-330"), 300, lotGinger.id, daysAgo(10), grn1.id);
+
+    const grn2 = await db.goodsReceipt.create({
+      data: { reference: "GRN-0002", poId: po4.id, warehouseId: northampton.id, receivedAt: daysAgo(4), notes: "Second pallet, elderflower balance" },
+    });
+    await receiveSeedLine("GRN-0002", elderLine.id, pid("DRK-ELDER-750"), 120, lotElderNew.id, daysAgo(4), grn2.id);
+  }
 
   // ── Cost invoices, allocated with the real engine ────────────────────────
   const allLines = [...po1.lines, ...po2.lines].map((l) => ({
@@ -956,6 +1063,135 @@ async function main() {
   await seedSale({ customer: "GWO", ago: 1, status: "DRAFT", channel: "mirakl-tesco", ext: "MIRAKL-TSC-291447", lines: [["HMW-BLANKET-GRY", 20, 27.99]] });
   // Pre-order: sold ahead, stock secured the moment it exists.
   await seedSale({ customer: "RANGE", ago: 1, status: "DRAFT", preOrder: true, po: "TR-PO-99991", lines: [["GRD-FIREPIT-01", 30, 76.99]] });
+  // Batch-tracked drinks in the despatch queue: the pick list and station
+  // both suggest the older elderflower lot first (FEFO).
+  await seedSale({ customer: "COZY", ago: 0, status: "DRAFT", po: "CH-77120", lines: [["DRK-ELDER-750", 130, 3.49], ["DRK-GINGER-330", 24, 2.19]] });
+
+  // ── Twelve months of trading history, the dashboard's ebb and flow ───────
+  // Garden peaks in summer, homeware peaks at Christmas, January troughs.
+  // Stock is restocked by PO-0005 (received a year ago) with EXACTLY the
+  // quantities history despatches, priced at current average landed cost, so
+  // today's stock levels and averages are undisturbed. Orders seed AFTER the
+  // recent ones so documented references (SO-0012, SO-0016, SO-0017) keep
+  // their numbers; a final pass below rebuilds running ledger balances in
+  // date order.
+  {
+    // monthsAgo maps to the calendar month that many months back; the
+    // current partial month is the live demo period itself.
+    const HISTORY: { monthsAgo: number; customer: string; lines: [string, number, number][] }[] = [
+      { monthsAgo: 11, customer: "RDYAS", lines: [["HMW-BLANKET-GRY", 30, 26.99], ["HMW-CANDLE-3PK", 40, 11.49]] },
+      { monthsAgo: 10, customer: "HARW", lines: [["HMW-BLANKET-GRY", 60, 26.99], ["HMW-CANDLE-3PK", 80, 11.49], ["HMW-MUG-SET4", 40, 13.99]] },
+      { monthsAgo: 9, customer: "COZY", lines: [["HMW-CANDLE-3PK", 120, 11.99], ["HMW-MUG-SET4", 60, 13.99], ["HMW-LANTERN-01", 50, 9.49]] },
+      { monthsAgo: 8, customer: "RANGE", lines: [["HMW-BLANKET-GRY", 15, 25.99], ["GRD-TONGS-01", 20, 5.49]] },
+      { monthsAgo: 7, customer: "RDYAS", lines: [["HMW-MUG-SET4", 20, 12.99], ["HMW-LANTERN-01", 15, 9.49]] },
+      { monthsAgo: 6, customer: "GWO", lines: [["GRD-PIZZA-STONE", 30, 14.99], ["GRD-TONGS-01", 40, 5.49]] },
+      { monthsAgo: 5, customer: "RANGE", lines: [["GRD-FIREPIT-01", 10, 72.99], ["GRD-CHRCL-5KG", 60, 7.49]] },
+      { monthsAgo: 4, customer: "COZY", lines: [["GRD-FIREPIT-01", 15, 74.99], ["GRD-CHRCL-5KG", 100, 7.49], ["GRD-TONGS-01", 60, 5.49]] },
+      { monthsAgo: 3, customer: "RANGE", lines: [["GRD-FIREPIT-01", 25, 72.99], ["GRD-CHRCL-5KG", 150, 7.49], ["GRD-PIZZA-STONE", 40, 14.99]] },
+      { monthsAgo: 2, customer: "HARW", lines: [["GRD-FIREPIT-01", 20, 74.99], ["GRD-CHRCL-5KG", 120, 7.49], ["GRD-TONGS-01", 80, 5.49]] },
+      { monthsAgo: 1, customer: "GWO", lines: [["GRD-FIREPIT-01", 12, 72.99], ["GRD-PIZZA-STONE", 30, 14.99], ["GRD-CHRCL-5KG", 80, 7.49]] },
+    ];
+    // Anchor each order to the 15th of its real calendar month (30-day
+    // approximations drift and double-bucket months); all history sits
+    // outside the 28-day replenishment velocity window.
+    const agoDays = (monthsAgo: number) => {
+      const now = new Date();
+      const mid = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 15);
+      return Math.round((now.getTime() - mid.getTime()) / (24 * 60 * 60 * 1000));
+    };
+
+    // Net-zero restock, split by the warehouse each customer despatches from.
+    const whCodeFor = (c: string) => (c === "GWO" ? leeds.id : northampton.id);
+    const restock = new Map<string, Map<string, number>>(); // sku → warehouseId → qty
+    for (const h of HISTORY) {
+      for (const [sku, qty] of h.lines) {
+        const perWh = restock.get(sku) ?? new Map<string, number>();
+        perWh.set(whCodeFor(h.customer), (perWh.get(whCodeFor(h.customer)) ?? 0) + qty);
+        restock.set(sku, perWh);
+      }
+    }
+    const histCost = (sku: string) => Math.round(avgLanded.get(pid(sku)) ?? 0) || gbp(1);
+    const histPo = await db.purchaseOrder.create({
+      data: {
+        reference: "PO-0005",
+        supplierId: sbt.id,
+        status: "RECEIVED",
+        placedAt: daysAgo(400),
+        receivedAt: daysAgo(370),
+        notes: "Season stock take-on (history)",
+        lines: {
+          create: [...restock.entries()].map(([sku, perWh]) => ({
+            productId: pid(sku),
+            quantity: [...perWh.values()].reduce((s, q) => s + q, 0),
+            unitCostPence: histCost(sku),
+          })),
+        },
+      },
+    });
+    for (const [sku, perWh] of restock) {
+      for (const [warehouseId, qty] of perWh) {
+        await db.stockLevel.upsert({
+          where: { productId_warehouseId: { productId: pid(sku), warehouseId } },
+          create: { productId: pid(sku), warehouseId, quantity: qty },
+          update: { quantity: { increment: qty } },
+        });
+        await logMove(pid(sku), warehouseId, qty, "PO_RECEIPT", "PO-0005", histPo.id, daysAgo(370));
+      }
+    }
+    for (const h of HISTORY) {
+      const order = await seedSale({
+        customer: h.customer,
+        ago: agoDays(h.monthsAgo),
+        status: "INVOICED",
+        lines: h.lines,
+      });
+      // History is settled: invoices paid, so the register isn't a wall of overdue.
+      await db.invoice.updateMany({
+        where: { salesOrderId: order.id },
+        data: { paidAt: daysAgo(Math.max(agoDays(h.monthsAgo) - 28, 1)) },
+      });
+    }
+  }
+
+  // ── Cost to serve: expected carriage on the pallet despatches, and one
+  // carrier invoice matched with variances. The Palletways consignments
+  // (RANGE) accrued at despatch; PW-INV-30977 covers both, one over and one
+  // under the accrual. The DHL despatch (RDYAS) stays accrued-not-invoiced,
+  // so the register shows all three carriage states.
+  {
+    const pw1 = await db.despatch.findFirst({ where: { trackingNumber: "PW8827741" } });
+    const pw2 = await db.despatch.findFirst({ where: { trackingNumber: "PW8830112" } });
+    const dhl = await db.despatch.findFirst({ where: { trackingNumber: "JD0148899917" } });
+    if (pw1) await db.despatch.update({ where: { id: pw1.id }, data: { expectedCarriagePence: gbp(38.5) } });
+    if (pw2) await db.despatch.update({ where: { id: pw2.id }, data: { expectedCarriagePence: gbp(42) } });
+    if (dhl) await db.despatch.update({ where: { id: dhl.id }, data: { expectedCarriagePence: gbp(12.5) } });
+    if (pw1 && pw2) {
+      await db.carrierInvoice.create({
+        data: {
+          reference: "PW-INV-30977",
+          carrier: "Palletways",
+          invoiceDate: daysAgo(2),
+          notes: "Weekly pallet account invoice",
+          lines: {
+            create: [
+              {
+                description: "Consignment, 3 pallets to Bristol",
+                consignmentRef: "PW8827741",
+                amountPence: gbp(41.75),
+                allocations: { create: [{ despatchId: pw1.id, amountPence: gbp(41.75) }] },
+              },
+              {
+                description: "Consignment, 2 pallets to Bristol",
+                consignmentRef: "PW8830112",
+                amountPence: gbp(39.9),
+                allocations: { create: [{ despatchId: pw2.id, amountPence: gbp(39.9) }] },
+              },
+            ],
+          },
+        },
+      });
+    }
+  }
 
   // ── The scoping-doc example: EDI order 100 → confirmed 80 → despatched 75 ──
   // Fill rates: 80% confirmation, 75% dispatch vs original, 93.75% vs confirmed.
@@ -1453,6 +1689,60 @@ async function main() {
         posted: true,
       });
     }
+    // Partial deliveries journal per goods receipt, only that delivery's value.
+    const seededReceipts = await db.goodsReceipt.findMany({
+      include: {
+        lines: { include: { poLine: true } },
+        purchaseOrder: { select: { reference: true } },
+      },
+      orderBy: { reference: "asc" },
+    });
+    for (const r of seededReceipts) {
+      await journal({
+        type: "PO_RECEIPT",
+        sourceRef: r.reference,
+        memo: `Goods received ${r.reference} (${r.purchaseOrder.reference})`,
+        total: r.lines.reduce((s, l) => s + l.quantity * l.poLine.unitCostPence, 0),
+        debit: "Stock on Hand",
+        credit: "Goods Received Not Invoiced",
+        when: r.receivedAt,
+      });
+    }
+    // Cost to serve: carriage accruals at despatch, then the carrier
+    // invoice's per-despatch variances (the bill itself clears the accrual
+    // in the ledger app, only the difference journals here).
+    const accruedDespatches = await db.despatch.findMany({
+      where: { expectedCarriagePence: { not: null } },
+      include: {
+        salesOrder: { select: { reference: true } },
+        carrierAllocations: { select: { amountPence: true } },
+      },
+      orderBy: { reference: "asc" },
+    });
+    for (const d of accruedDespatches) {
+      await journal({
+        type: "CARRIAGE_ACCRUAL",
+        sourceRef: d.reference,
+        memo: `Expected carriage for ${d.reference} (${d.salesOrder.reference})`,
+        total: d.expectedCarriagePence!,
+        debit: "Cost to Serve",
+        credit: "Carriage Accruals",
+        when: d.despatchedAt ?? daysAgo(5),
+      });
+      const actual = d.carrierAllocations.reduce((s, a) => s + a.amountPence, 0);
+      if (actual === 0) continue;
+      const variance = actual - d.expectedCarriagePence!;
+      if (variance === 0) continue;
+      await journal({
+        type: "CARRIAGE_COST",
+        sourceRef: "PW-INV-30977",
+        memo: `Carrier invoice PW-INV-30977 matched to ${d.reference} (${d.salesOrder.reference})`,
+        total: Math.abs(variance),
+        debit: variance > 0 ? "Cost to Serve" : "Carriage Accruals",
+        credit: variance > 0 ? "Carriage Accruals" : "Cost to Serve",
+        when: daysAgo(2),
+      });
+    }
     const shippedDespatches = await db.despatch.findMany({
       where: { status: "DESPATCHED" },
       include: { lines: true, salesOrder: { select: { reference: true } } },
@@ -1467,6 +1757,9 @@ async function main() {
         debit: "Cost of Goods Sold",
         credit: "Stock on Hand",
         when: d.despatchedAt ?? daysAgo(1),
+        // History despatches were drained to the ledger app long ago; only
+        // the recent period stays PENDING for the Xero-loop demo.
+        posted: (d.despatchedAt ?? new Date()).getTime() < Date.now() - 30 * 24 * 60 * 60 * 1000,
       });
     }
     // ADJ-0001: +2 mugs, −3 lanterns at average landed, value both directions.
@@ -1599,6 +1892,30 @@ async function main() {
         },
       },
     });
+  }
+
+  // ── Rebuild running ledger balances in date order ─────────────────────────
+  // History seeds after the recent period (to keep documented references
+  // stable), so balanceAfter values were computed out of chronological order.
+  // Replay every product+warehouse trail oldest-first and rewrite the running
+  // balance, restoring the "ledger explains the level" invariant everywhere.
+  {
+    const allMoves = await db.stockMovement.findMany({
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, productId: true, warehouseId: true, quantity: true, balanceAfter: true },
+    });
+    const running = new Map<string, number>();
+    let fixed = 0;
+    for (const m of allMoves) {
+      const key = `${m.productId}|${m.warehouseId}`;
+      const balance = (running.get(key) ?? 0) + m.quantity;
+      running.set(key, balance);
+      if (balance !== m.balanceAfter) {
+        await db.stockMovement.update({ where: { id: m.id }, data: { balanceAfter: balance } });
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log(`Rebuilt ${fixed} running ledger balances in date order`);
   }
 
   const counts = {

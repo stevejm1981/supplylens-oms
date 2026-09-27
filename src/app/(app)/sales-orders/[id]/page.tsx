@@ -56,7 +56,10 @@ export default async function SalesOrderPage({
         deliveryLocation: { select: { name: true, code: true } },
         lines: { include: { product: true, despatchLines: true, returnLines: true } },
         invoice: true,
-        despatches: { include: { lines: true }, orderBy: { reference: "asc" } },
+        despatches: {
+          include: { lines: true, carrierAllocations: { select: { amountPence: true } } },
+          orderBy: { reference: "asc" },
+        },
         creditNotes: { include: { lines: true }, orderBy: { creditDate: "asc" } },
         amendments: { orderBy: { createdAt: "asc" } },
       },
@@ -85,6 +88,19 @@ export default async function SalesOrderPage({
     ? order.lines.reduce((s, l) => s + l.quantity * (l.unitCogsPence ?? 0), 0)
     : null;
   const margin = cogs != null ? net - cogs : null;
+
+  // Cost to serve: what carriers charge US for this order's despatches,
+  // actual where a carrier invoice has matched, else the accrual. True
+  // margin nets it off alongside COGS.
+  let carriageInvoiced = 0;
+  let carriageAccrued = 0;
+  for (const d of order.despatches) {
+    const actual = d.carrierAllocations.reduce((s, a) => s + a.amountPence, 0);
+    if (actual > 0) carriageInvoiced += actual;
+    else if (d.expectedCarriagePence) carriageAccrued += d.expectedCarriagePence;
+  }
+  const costToServe = carriageInvoiced + carriageAccrued;
+  const trueMargin = margin != null && costToServe > 0 ? margin - costToServe : null;
 
   // Fulfilment: derived from despatch documents.
   const despatchedByLine = new Map<string, number>();
@@ -539,6 +555,19 @@ export default async function SalesOrderPage({
                     <dd className="text-right font-semibold tabular-nums text-emerald-700">
                       {formatPence(margin)}{" "}
                       {net > 0 ? `(${((margin / net) * 100).toFixed(1)}%)` : ""}
+                    </dd>
+                  </>
+                ) : null}
+                {trueMargin != null ? (
+                  <>
+                    <dt className="text-muted-foreground">
+                      Cost to serve{carriageInvoiced > 0 && carriageAccrued === 0 ? " (invoiced)" : carriageInvoiced === 0 ? " (accrued)" : ""}
+                    </dt>
+                    <dd className="text-right tabular-nums">{formatPence(costToServe)}</dd>
+                    <dt className="font-medium text-teal-700">True margin</dt>
+                    <dd className="text-right font-semibold tabular-nums text-teal-700">
+                      {formatPence(trueMargin)}{" "}
+                      {net > 0 ? `(${((trueMargin / net) * 100).toFixed(1)}%)` : ""}
                     </dd>
                   </>
                 ) : null}

@@ -3,6 +3,7 @@
 
 import { db } from "@/lib/db";
 import { fillRates, orderTotalsPence } from "@/lib/sales";
+import { carriageStatus, effectiveCarriagePence } from "@/lib/engine/carriage";
 
 export async function serializeOrder(reference: string) {
   const order = await db.salesOrder.findUnique({
@@ -12,7 +13,7 @@ export async function serializeOrder(reference: string) {
       channel: { select: { code: true } },
       deliveryLocation: { select: { code: true, name: true } },
       lines: { include: { product: { select: { sku: true } }, despatchLines: true } },
-      despatches: true,
+      despatches: { include: { carrierAllocations: { select: { amountPence: true } } } },
       invoice: true,
     },
   });
@@ -71,13 +72,30 @@ export async function serializeOrder(reference: string) {
       discountPct: l.discountPct,
       despatchedQty: l.despatchLines.reduce((s, d) => s + d.despatchedQty, 0),
     })),
-    despatches: order.despatches.map((d) => ({
-      reference: d.reference,
-      status: d.status,
-      shippingService: d.shippingService,
-      trackingNumber: d.trackingNumber,
-      despatchedAt: d.despatchedAt,
-    })),
+    despatches: order.despatches.map((d) => {
+      const actualCarriage = d.carrierAllocations.reduce((s, a) => s + a.amountPence, 0);
+      return {
+        reference: d.reference,
+        status: d.status,
+        shippingService: d.shippingService,
+        trackingNumber: d.trackingNumber,
+        despatchedAt: d.despatchedAt,
+        // Cost to serve: the accrual made at despatch and, once a carrier
+        // invoice matches, the actual charge.
+        expectedCarriagePence: d.expectedCarriagePence,
+        actualCarriagePence: actualCarriage > 0 ? actualCarriage : null,
+        carriageStatus: carriageStatus(d.expectedCarriagePence, actualCarriage),
+      };
+    }),
+    costToServePence: order.despatches.reduce(
+      (s, d) =>
+        s +
+        effectiveCarriagePence(
+          d.expectedCarriagePence,
+          d.carrierAllocations.reduce((x, a) => x + a.amountPence, 0),
+        ),
+      0,
+    ),
     invoice: order.invoice
       ? {
           number: order.invoice.number,

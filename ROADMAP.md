@@ -18,27 +18,22 @@ are standard core, not add-ons.
 
 ## Next (in order)
 
-1. **Batch / lot tracking + FEFO**, lots created at PO receipt (batch ref,
-   received date, best-before); stock, availability and despatch consumption
-   gain a lot axis; Despatch Station pick lists show "take lot / BBE"; FEFO
-   pick suggestions; recall traceability ("which orders got batch X?").
-   *Trigger: food & drink prospects (Equinox call). Also unlocks physical FIFO.*
-2. **Multi-tenant data scoping (identity Phase 2)**, `orgId` on every data
+1. **Multi-tenant data scoping (identity Phase 2)**, `orgId` on every data
    table, every query filtered by the signed-in user's organisation, per-org
    API keys. Mechanical but wide; required before two real customers share a
    database. (Phase 3 at deploy: Supabase Auth swap + row-level security.)
-3. **Webhooks / outbound events**, order created, despatched, stock changed,
+2. **Webhooks / outbound events**, order created, despatched, stock changed,
    feed changed, journal pending → pushed to subscriber URLs so SupplyLens
    flows trigger instantly instead of polling `updatedSince`.
-4. **Integration sync health**, on the Integrations page (gallery + tokens
+3. **Integration sync health**, on the Integrations page (gallery + tokens
    shipped v27): per-connection last order in, last feed pull, last despatch
    confirmation, error counts. Makes "side by side" visible to the customer.
-5. **API pagination**, cursor/limit on all registers. Platform citizenship
+4. **API pagination**, cursor/limit on all registers. Platform citizenship
    before any real connector runs at volume.
-6. **Order promising (ATP-lite)**, promise dates at order entry and via API:
+5. **Order promising (ATP-lite)**, promise dates at order entry and via API:
    in stock → promise now; back-ordered → promise from the covering/earliest
    inbound PO's ETA. (Back orders + SO⇄PO cover shipped v28.)
-7. **Accounting sync (Xero)**, a SupplyLens flow draining the stock-journal
+6. **Accounting sync (Xero)**, a SupplyLens flow draining the stock-journal
    outbox and pushing invoices/credits; invoice `POST /paid` already exists
    for the return path.
 
@@ -63,10 +58,24 @@ are standard core, not add-ons.
   PO lines, and stock movements (itemised, not header-level), the
   spreadsheet-friendly answer to "where do I download itemised lists?", which
   legacy platforms answer with report-scraping and manual column mapping.
+- **Production Station**, the tablet works-order flow for line-side
+  consumption capture: consume components batch by batch as the line runs,
+  complete the assembly live, line-side label printing.
+  *Trigger: Equinox phase 3.*
+- **Production planning engine**, retailer forecast ingestion combined with
+  promotions into a production plan, recalculating material requirements
+  when anything changes. *Trigger: Equinox planning track (their current
+  platform's forecasting module has no API).*
+- **Batch columns on opening-stock import**, take-on balances landing as
+  lots with best-before dates for batch-tracked go-lives.
+- **Carrier invoice CSV import**, parcel-scale billing files (one row per
+  tracking number) loaded straight into a carrier invoice. The pallet-scale
+  manual matching shipped v38; this is the DPD-volume version.
+- **Cost-to-serve reporting**, carriage cost and true margin rolled up by
+  channel and customer on Reports (per-order true margin shipped v38).
 - **Stocktake count-sheet mode**, export a count sheet per warehouse
   (SKU, expected, blank "counted" column), import it back → one variance
   adjustment document, fully ledgered. Today: full counts via Adjustments.
-- **Partial PO receipts**, receive line quantities across multiple deliveries.
 - **Sales-order history import**, open orders at cutover for migrations that
   can't start clean.
 - **Scale hardening**: materialised availability counters (maintained in the
@@ -112,4 +121,7 @@ bin/zone/rack warehouse layouts (3PL territory), invoice OCR.
 | v30 | Deployed: Postgres (Supabase shared pooler) everywhere including local dev, fresh init migration, pg adapter, build runs generate + migrate + next build, repo pushed to GitHub, Vercel wired |
 | v36 | B2B portal: invite-only buyer logins per customer, catalogue at price-list prices with stock bands, basket ordering onto the b2b-portal channel (proforma drafts for zero-terms customers), order tracking, invoices and credits with account balances, returns requests; per-customer price lists across the OMS, order forms, imports, and priceless API intake |
 | v32 | Financial completeness audit: landed-cost invoices journal stock uplift (with delete reversal), receipts include pre-allocated costs, supplier returns journal Supplier Credits Due, opening-stock imports write take-on journals; the Financials Map in the University |
+| v37 | Batch/lot tracking + FEFO and the Goods-In Station: batch-tracked products, lots created at receipt with best-before, per-lot balances derived from the ledger, FEFO despatch consumption with take-lot suggestions on the station and both pick lists, recall drill from the product batches card; goods receipts (GRN documents) with partial deliveries walking POs PLACED, PARTIALLY_RECEIVED, RECEIVED; per-delivery GRNI journals and pro-rated landed-cost uplifts; receipts API accepts partial lines with batches |
+| v38 | Carrier costs (cost to serve): expected carriage accrued per despatch (station and office, CARRIAGE_ACCRUAL journals), carrier invoice documents matched to despatches by tracking or order with consolidated consignments split by value, weight, or manual amounts, variance-only CARRIAGE_COST journals (the carrier's bill clears Carriage Accruals in the ledger app, mirroring GRNI), true margin per order (revenue minus COGS minus carriage) on order totals, carriage chips on despatches, API intake and register |
+| v39 | Dashboard overview: eight live tiles (inventory value and units, products, orders, customers, out of stock, units sold over 12 months, open POs, 12-month profit) plus an expense vs profit chart pairing COGS-plus-carriage against invoiced revenue month by month for the last twelve; seeded with a paid, net-zero-stock year of trading history so the seasonal ebb and flow is visible |
 | v31 | Production orders: DRAFT/IN_PROGRESS/COMPLETED lifecycle, ASSEMBLED product type, components into WIP at start, actuals + absorbed build costs (labour/machine) at completion, finished tranches at true rolled-up cost, operator-first three-button UI, API register; recipe-yield BOMs ("this recipe makes N units") with batch-aware planning |

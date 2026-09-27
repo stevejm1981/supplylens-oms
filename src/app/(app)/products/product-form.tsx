@@ -45,6 +45,7 @@ export interface ProductFormValues {
   baseCostPence?: number;
   sellPricePence?: number;
   type?: string;
+  batchTracked?: boolean;
   supplierId?: string | null;
   familyId?: string | null;
   variant?: string | null;
@@ -274,6 +275,18 @@ export function ProductFormDialog({
             <Label htmlFor="barcode">Barcode</Label>
             <Input id="barcode" name="barcode" defaultValue={product?.barcode ?? ""} />
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="batchTracked"
+              defaultChecked={product?.batchTracked ?? false}
+              className="size-4 accent-primary"
+            />
+            Batch tracked
+            <span className="text-xs text-muted-foreground">
+              (goods in demands a lot and best-before; despatch picks FEFO)
+            </span>
+          </label>
           <DialogFooter>
             <Button type="submit" disabled={pending}>
               {pending ? "Saving…" : editing ? "Save changes" : "Create product"}

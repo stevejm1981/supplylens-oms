@@ -7,6 +7,9 @@ import { orderTotalsPence } from "@/lib/sales";
 import { recordMovement } from "@/lib/stock-ledger";
 import { JOURNAL_ACCOUNTS, recordStockJournal } from "@/lib/journals";
 import { nextRef } from "@/lib/settings";
+import { fefoAllocate } from "@/lib/engine/fefo";
+import { getFefoBatches } from "@/lib/batches";
+import { accrualDelta } from "@/lib/engine/carriage";
 
 export type ActionResult =
   | { ok: true; id?: string }
@@ -300,7 +303,13 @@ export async function markDespatchPicked(
  */
 export async function despatchDespatch(
   id: string,
-  shipping: { shippingService?: string | null; trackingNumber?: string | null },
+  shipping: {
+    shippingService?: string | null;
+    trackingNumber?: string | null;
+    // What the carrier will charge US for this despatch (cost to serve),
+    // accrued in the same transaction. Not the carriage charged to the customer.
+    expectedCarriagePence?: number | null;
+  },
 ): Promise<ActionResult> {
   const despatch = await db.despatch.findUnique({
     where: { id },
@@ -373,6 +382,16 @@ export async function despatchDespatch(
   const skuById = new Map(physicalProducts.map((p) => [p.id, p.sku]));
   const baseById = new Map(physicalProducts.map((p) => [p.id, p.baseCostPence]));
 
+  // Batch-tracked products consume FEFO: the despatch splits their movement
+  // across batches (earliest best-before first), so recall traceability knows
+  // exactly which lot every order shipped. Pre-batch history despatches with
+  // no batch reference rather than blocking.
+  const trackedIds = physicalProducts.filter((p) => p.batchTracked).map((p) => p.id);
+  const fefoByProduct =
+    trackedIds.length > 0
+      ? await getFefoBatches({ productIds: trackedIds, warehouseId: order.warehouseId })
+      : new Map<string, never[]>();
+
   // This order's own outstanding commitment (bundle-exploded), its despatch may
   // consume its own claim, plus any reservation held for this customer.
   const ownCommit = new Map<string, number>();
@@ -426,14 +445,29 @@ export async function despatchDespatch(
           where: { productId_warehouseId: { productId, warehouseId: order.warehouseId } },
           data: { quantity: { decrement: qty } },
         });
-        await recordMovement(tx, {
-          productId,
-          warehouseId: order.warehouseId,
-          quantity: -qty,
-          type: "DESPATCH",
-          reference: despatch.reference,
-          referenceId: order.id,
-        });
+        const { allocations, unallocated } = fefoAllocate(fefoByProduct.get(productId) ?? [], qty);
+        for (const take of allocations) {
+          await recordMovement(tx, {
+            productId,
+            warehouseId: order.warehouseId,
+            quantity: -take.quantity,
+            type: "DESPATCH",
+            reference: despatch.reference,
+            referenceId: order.id,
+            batchId: take.batchId,
+            notes: `Batch ${take.batchRef}`,
+          });
+        }
+        if (unallocated > 0) {
+          await recordMovement(tx, {
+            productId,
+            warehouseId: order.warehouseId,
+            quantity: -unallocated,
+            type: "DESPATCH",
+            reference: despatch.reference,
+            referenceId: order.id,
+          });
+        }
         // Consume this customer's reservations for the despatched goods,
         // oldest first, the pre-order hold fulfils itself.
         let toConsume = qty;
@@ -494,6 +528,10 @@ export async function despatchDespatch(
           { account: JOURNAL_ACCOUNTS.stock, creditPence: Math.round(cogsTotal) },
         ],
       });
+      const expectedCarriage =
+        shipping.expectedCarriagePence && shipping.expectedCarriagePence > 0
+          ? Math.round(shipping.expectedCarriagePence)
+          : null;
       await tx.despatch.update({
         where: { id },
         data: {
@@ -501,8 +539,24 @@ export async function despatchDespatch(
           despatchedAt: new Date(),
           shippingService: shipping.shippingService?.trim() || despatch.shippingService,
           trackingNumber: shipping.trackingNumber?.trim() || null,
+          expectedCarriagePence: expectedCarriage,
         },
       });
+      // Cost to serve accrual: what the carrier is expected to charge us for
+      // this despatch goes on the books now; the carrier's invoice later
+      // clears the accrual and books only the variance.
+      if (expectedCarriage) {
+        await recordStockJournal(tx, {
+          type: "CARRIAGE_ACCRUAL",
+          sourceRef: despatch.reference,
+          sourceId: despatch.id,
+          memo: `Expected carriage for ${despatch.reference} (${order.reference})`,
+          lines: [
+            { account: JOURNAL_ACCOUNTS.costToServe, debitPence: expectedCarriage },
+            { account: JOURNAL_ACCOUNTS.carriageAccrual, creditPence: expectedCarriage },
+          ],
+        });
+      }
       await tx.salesOrder.update({
         where: { id: order.id },
         data: {
@@ -852,5 +906,65 @@ export async function deleteSalesOrder(id: string): Promise<ActionResult> {
   }
   await db.salesOrder.delete({ where: { id } });
   revalidateSales();
+  return { ok: true };
+}
+
+/**
+ * Set or correct a despatched consignment's expected carriage. Writes only
+ * the accrual DELTA (top-up or release); refused once a carrier invoice has
+ * matched the despatch, corrections then belong on the carrier invoice.
+ */
+export async function setExpectedCarriage(
+  despatchId: string,
+  expectedPence: number | null,
+): Promise<ActionResult> {
+  const despatch = await db.despatch.findUnique({
+    where: { id: despatchId },
+    include: {
+      salesOrder: { select: { id: true, reference: true } },
+      carrierAllocations: { select: { id: true } },
+    },
+  });
+  if (!despatch) return { ok: false, error: "Despatch not found" };
+  if (despatch.status !== "DESPATCHED") {
+    return { ok: false, error: "Expected carriage is set when the despatch is confirmed" };
+  }
+  if (despatch.carrierAllocations.length > 0) {
+    return { ok: false, error: "A carrier invoice already covers this despatch" };
+  }
+  const next = expectedPence && expectedPence > 0 ? Math.round(expectedPence) : null;
+  const delta = accrualDelta(despatch.expectedCarriagePence, next);
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.despatch.update({
+        where: { id: despatchId },
+        data: { expectedCarriagePence: next },
+      });
+      if (delta) {
+        const lines =
+          delta.direction === "cost"
+            ? [
+                { account: JOURNAL_ACCOUNTS.costToServe, debitPence: delta.amountPence },
+                { account: JOURNAL_ACCOUNTS.carriageAccrual, creditPence: delta.amountPence },
+              ]
+            : [
+                { account: JOURNAL_ACCOUNTS.carriageAccrual, debitPence: delta.amountPence },
+                { account: JOURNAL_ACCOUNTS.costToServe, creditPence: delta.amountPence },
+              ];
+        await recordStockJournal(tx, {
+          type: "CARRIAGE_ACCRUAL",
+          sourceRef: despatch.reference,
+          sourceId: despatch.id,
+          memo: `Expected carriage revised for ${despatch.reference} (${despatch.salesOrder.reference})`,
+          lines,
+        });
+      }
+    });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Update failed" };
+  }
+  revalidatePath("/despatches");
+  revalidatePath(`/sales-orders/${despatch.salesOrder.id}`);
+  revalidatePath("/carrier-invoices");
   return { ok: true };
 }

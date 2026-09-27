@@ -22,6 +22,7 @@ export const DOC_PREFIX_DEFAULTS = {
   purchaseOrder: "PO",
   customerReturn: "RMA",
   supplierReturn: "RTV",
+  goodsReceipt: "GRN",
   adjustment: "ADJ",
   transfer: "TRF",
   reservation: "RSV",
@@ -39,6 +40,7 @@ export const DOC_TYPE_TITLES: Record<DocType, string> = {
   purchaseOrder: "Purchase orders",
   customerReturn: "Customer returns (RMA)",
   supplierReturn: "Supplier returns (RTV)",
+  goodsReceipt: "Goods receipts (GRN)",
   adjustment: "Stock adjustments",
   transfer: "Warehouse transfers",
   reservation: "Reservations",
@@ -61,6 +63,7 @@ export const STATUS_LABEL_DEFAULTS = {
   DESPATCHED: "Despatched",
   // Purchase orders
   PLACED: "Placed",
+  PARTIALLY_RECEIVED: "Part received",
   RECEIVED: "Received",
   // Production orders
   IN_PROGRESS: "In progress",
@@ -92,7 +95,7 @@ export const STATUS_GROUPS: { title: string; note: string; codes: StatusCode[] }
   {
     title: "Purchase orders",
     note: "DRAFT and RECEIVED reuse the labels above where they overlap.",
-    codes: ["PLACED", "RECEIVED"],
+    codes: ["PLACED", "PARTIALLY_RECEIVED", "RECEIVED"],
   },
   {
     title: "Production orders",

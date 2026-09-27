@@ -160,6 +160,7 @@ export function DespatchRowActions({ despatch }: { despatch: DespatchView }) {
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [service, setService] = useState(despatch.shippingService ?? "");
   const [tracking, setTracking] = useState("");
+  const [carriage, setCarriage] = useState("");
   const { pending, run } = useRun();
 
   if (despatch.status === "DESPATCHED") return null;
@@ -258,6 +259,20 @@ export function DespatchRowActions({ despatch }: { despatch: DespatchView }) {
                   onChange={(e) => setTracking(e.target.value)}
                 />
               </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`car-${despatch.id}`}>Carriage cost (£, what the carrier charges us)</Label>
+                <Input
+                  id={`car-${despatch.id}`}
+                  inputMode="decimal"
+                  placeholder="45.00"
+                  value={carriage}
+                  onChange={(e) => setCarriage(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. Accrues the expected cost to serve; the carrier&apos;s
+                  invoice later matches against it.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -268,6 +283,9 @@ export function DespatchRowActions({ despatch }: { despatch: DespatchView }) {
                       despatchDespatch(despatch.id, {
                         shippingService: service,
                         trackingNumber: tracking,
+                        expectedCarriagePence: carriage.trim()
+                          ? Math.round(Number.parseFloat(carriage) * 100) || null
+                          : null,
                       }),
                     "Despatched, stock deducted",
                     () => setShipOpen(false),

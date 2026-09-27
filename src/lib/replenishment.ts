@@ -45,7 +45,7 @@ export async function getReplenishmentRows(): Promise<ReplenishmentRow[]> {
     getAvailability(),
     getAvgLandedCosts(),
     db.purchaseOrderLine.findMany({
-      where: { purchaseOrder: { status: "PLACED" } },
+      where: { purchaseOrder: { status: { in: ["PLACED", "PARTIALLY_RECEIVED"] } } },
       include: { purchaseOrder: { select: { reference: true, expectedDate: true } } },
     }),
   ]);

@@ -42,6 +42,7 @@ export interface QueueLine {
   outerBarcode: string | null;
   unitWeightGrams: number;
   outstanding: number;
+  batchNote: string | null; // pre-formatted FEFO "take lot" suggestion (server-side)
 }
 
 export interface QueueOrder {
@@ -76,6 +77,7 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
   const [weightKg, setWeightKg] = useState("");
   const [service, setService] = useState("");
   const [tracking, setTracking] = useState("");
+  const [carriage, setCarriage] = useState("");
   const [pending, startTransition] = useTransition();
   const scanRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -208,6 +210,9 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
       const result = await confirmStationDespatch(despatchId, {
         shippingService: service,
         trackingNumber: tracking,
+        expectedCarriagePence: carriage.trim()
+          ? Math.round(Number.parseFloat(carriage) * 100) || null
+          : null,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -387,6 +392,9 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
                       {l.name}
                       {l.outerBarcode ? ` · outer ${l.outerBarcode}` : l.productBarcode ? ` · ${l.productBarcode}` : ""}
                     </span>
+                    {l.batchNote ? (
+                      <span className="block text-xs font-medium text-amber-700">{l.batchNote}</span>
+                    ) : null}
                   </div>
                   <Button variant="outline" size="icon" className="size-7" onClick={() => adjust(l.orderLineId, -1)} disabled={qty === 0}>
                     <Minus className="size-3.5" />
@@ -439,7 +447,7 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
               🎁 Gift message, include the card: “{order.giftMessage}”
             </p>
           ) : null}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="parcels">Parcels</Label>
               <Input id="parcels" inputMode="numeric" value={parcels} onChange={(e) => setParcels(e.target.value)} />
@@ -452,9 +460,20 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
               <Label htmlFor="service">Service</Label>
               <Input id="service" value={service} onChange={(e) => setService(e.target.value)} />
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="carriage">Carriage cost (£)</Label>
+              <Input
+                id="carriage"
+                inputMode="decimal"
+                placeholder="optional"
+                value={carriage}
+                onChange={(e) => setCarriage(e.target.value)}
+              />
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             Weight pre-filled from the picked items’ catalogue weights, override with the scale reading.
+            Carriage cost is what the carrier charges YOU (cost to serve), it accrues against this order.
           </p>
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStage("picking")} disabled={pending || order.resumeStatus === "PICKED"}>

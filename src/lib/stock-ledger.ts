@@ -36,6 +36,7 @@ export async function recordMovement(
     type: MovementType;
     reference: string;
     referenceId?: string | null;
+    batchId?: string | null; // batch/lot touched, for batch-tracked products
     notes?: string | null;
     createdAt?: Date;
   },
@@ -57,6 +58,7 @@ export async function recordMovement(
       type: event.type,
       reference: event.reference,
       referenceId: event.referenceId ?? null,
+      batchId: event.batchId ?? null,
       notes: event.notes ?? null,
       ...(event.createdAt ? { createdAt: event.createdAt } : {}),
     },

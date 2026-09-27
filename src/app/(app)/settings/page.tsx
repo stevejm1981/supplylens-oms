@@ -33,6 +33,7 @@ export default async function SettingsPage() {
     invoice: await db.invoice.count(),
     creditNote: await db.creditNote.count(),
     purchaseOrder: await db.purchaseOrder.count(),
+    goodsReceipt: await db.goodsReceipt.count(),
     customerReturn: await db.customerReturn.count(),
     supplierReturn: await db.supplierReturn.count(),
     adjustment: await db.stockAdjustment.count(),

@@ -68,6 +68,9 @@ model Product {
   baseCostPence Int     @default(0)
   sellPricePence Int    @default(0)
   type          String  @default("STANDARD") // "STANDARD" | "BUNDLE"
+  // Batch-tracked products demand a batch reference (and optional best-before)
+  // at every goods receipt; despatch consumption is suggested FEFO.
+  batchTracked  Boolean @default(false)
   // Recipe yield for ASSEMBLED products: the BOM's component quantities
   // produce this many units per batch ("this recipe makes 1000 bottles").
   // Bundles and standard products stay at 1.
@@ -100,6 +103,8 @@ model Product {
   productionOrders ProductionOrder[]
   usedInProduction ProductionOrderLine[] @relation("productionComponent")
   customerPrices   CustomerPrice[]
+  batches          StockBatch[]
+  receiptLines     GoodsReceiptLine[]
 }
 
 // Alternate selling units — pack/case configurations. GS1-style: an outer
@@ -133,7 +138,7 @@ model PurchaseOrder {
   reference    String    @unique
   supplierId   String
   supplier     Supplier  @relation(fields: [supplierId], references: [id])
-  status       String    @default("DRAFT") // "DRAFT" | "PLACED" | "RECEIVED"
+  status       String    @default("DRAFT") // "DRAFT" | "PLACED" | "PARTIALLY_RECEIVED" | "RECEIVED"
   containerRef String?
   currency     String    @default("GBP")
   expectedDate DateTime?
@@ -146,6 +151,7 @@ model PurchaseOrder {
   lines        PurchaseOrderLine[]
   costInvoices CostInvoicePurchaseOrder[]
   reservations StockReservation[]
+  receipts     GoodsReceipt[]
 }
 
 model PurchaseOrderLine {
@@ -157,7 +163,8 @@ model PurchaseOrderLine {
   quantity      Int
   unitCostPence Int
 
-  allocations CostAllocation[]
+  allocations  CostAllocation[]
+  receiptLines GoodsReceiptLine[]
 }
 
 model CostInvoice {
@@ -217,6 +224,7 @@ model Warehouse {
   customerReturns CustomerReturn[]
   supplierReturns SupplierReturn[]
   reservations    StockReservation[]
+  goodsReceipts   GoodsReceipt[]
 }
 
 // Append-only stock ledger — every event that changes stock writes a row here
@@ -233,9 +241,64 @@ model StockMovement {
   type         String // "OPENING" | "PO_RECEIPT" | "DESPATCH" | "CREDIT_RESTOCK" | "ADJUSTMENT"
   reference    String // document reference: "PO-0001", "DSP-0004", "CRN-0002"
   referenceId  String? // routable id (purchase order / sales order) for linking
+  batchId      String? // batch/lot this movement touched (batch-tracked products)
+  batch        StockBatch? @relation(fields: [batchId], references: [id])
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+}
+
+// A stock batch/lot: created at goods receipt (or build/opening/adjustment)
+// for batch-tracked products. Quantity is DERIVED from the movement ledger
+// (movements carry batchId); the batch row holds identity and dates only.
+model StockBatch {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id])
+  batchRef   String
+  bestBefore DateTime?
+  receivedAt DateTime  @default(now())
+  sourceType String    @default("PO_RECEIPT") // "PO_RECEIPT" | "BUILD" | "OPENING" | "ADJUSTMENT"
+  sourceRef  String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  movements    StockMovement[]
+  receiptLines GoodsReceiptLine[]
+
+  @@unique([productId, batchRef])
+}
+
+// One physical delivery against a purchase order. A PO can be received across
+// several receipts (partial deliveries); receipt lines record base-unit
+// quantities and, for batch-tracked products, the batch they created.
+model GoodsReceipt {
+  id            String        @id @default(cuid())
+  reference     String        @unique // "GRN-0001"
+  poId          String
+  purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id])
+  warehouseId   String
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
+  receivedAt    DateTime      @default(now())
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
+
+  lines GoodsReceiptLine[]
+}
+
+model GoodsReceiptLine {
+  id        String            @id @default(cuid())
+  receiptId String
+  receipt   GoodsReceipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  poLineId  String
+  poLine    PurchaseOrderLine @relation(fields: [poLineId], references: [id])
+  productId String
+  product   Product           @relation(fields: [productId], references: [id])
+  quantity  Int // base units received in this delivery
+  batchId   String?
+  batch     StockBatch?       @relation(fields: [batchId], references: [id])
 }
 
 model StockLevel {
@@ -703,12 +766,58 @@ model Despatch {
   status       String     @default("PICKING") // "PICKING" | "PICKED" | "DESPATCHED"
   shippingService String?
   trackingNumber  String?
+  // What the carrier is EXPECTED to charge us for this despatch (accrued at
+  // confirmation, cost to serve). Distinct from SalesOrder.shippingPence,
+  // which is the carriage charged TO the customer (revenue).
+  expectedCarriagePence Int?
   createdAt    DateTime   @default(now())
   updatedAt DateTime @default(now()) @updatedAt
   pickedAt     DateTime?
   despatchedAt DateTime?
 
   lines DespatchLine[]
+  carrierAllocations CarrierAllocation[]
+}
+
+// A carrier's bill for outbound deliveries, the outbound mirror of a cost
+// invoice: reference is the CARRIER's invoice number, lines are consignments,
+// and each line splits across the despatches it covered (consolidated pallets
+// are the normal B2B case). Matching a despatch books the variance between
+// its accrued expected carriage and the actual charge; in the ledger app the
+// carrier's bill itself is coded to Carriage Accruals, exactly as supplier
+// bills clear GRNI.
+model CarrierInvoice {
+  id          String   @id @default(cuid())
+  reference   String   @unique // the carrier's invoice number
+  carrier     String // "Palletways", "DPD"…
+  invoiceDate DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  lines CarrierInvoiceLine[]
+}
+
+model CarrierInvoiceLine {
+  id             String         @id @default(cuid())
+  invoiceId      String
+  invoice        CarrierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description    String?
+  consignmentRef String? // the carrier's consignment/manifest reference
+  amountPence    Int
+
+  allocations CarrierAllocation[]
+}
+
+model CarrierAllocation {
+  id          String             @id @default(cuid())
+  lineId      String
+  line        CarrierInvoiceLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  despatchId  String
+  despatch    Despatch           @relation(fields: [despatchId], references: [id])
+  amountPence Int
+
+  @@unique([lineId, despatchId])
 }
 
 model DespatchLine {

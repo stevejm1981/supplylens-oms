@@ -24,12 +24,14 @@ import {
   Radio,
   Receipt,
   RotateCcw,
+  PackageCheck,
   ScanBarcode,
   Settings,
   ShoppingCart,
   Telescope,
   TrendingUp,
   Truck,
+  TruckElectric,
   Undo2,
   UserRound,
   Users,
@@ -82,6 +84,7 @@ const sections: { label: string; items: { title: string; href: string; icon: Rea
     items: [
       { title: "Purchase Orders", href: "/purchase-orders", icon: Container },
       { title: "Cost Invoices", href: "/cost-invoices", icon: Receipt },
+      { title: "Carrier Invoices", href: "/carrier-invoices", icon: TruckElectric },
       { title: "Replenishment", href: "/replenishment", icon: TrendingUp },
     ],
   },
@@ -91,7 +94,10 @@ const sections: { label: string; items: { title: string; href: string; icon: Rea
   },
   {
     label: "Warehouse",
-    items: [{ title: "Despatch Station", href: "/despatch-station", icon: ScanBarcode }],
+    items: [
+      { title: "Despatch Station", href: "/despatch-station", icon: ScanBarcode },
+      { title: "Goods-In Station", href: "/goods-in-station", icon: PackageCheck },
+    ],
   },
   {
     label: "Inventory",

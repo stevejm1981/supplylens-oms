@@ -2,9 +2,12 @@ import Link from "next/link";
 import { Truck } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { carriageStatus, effectiveCarriagePence } from "@/lib/engine/carriage";
+import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -29,6 +32,7 @@ export default async function DespatchesPage() {
         },
       },
       lines: true,
+      carrierAllocations: { select: { amountPence: true } },
     },
   });
 
@@ -62,6 +66,7 @@ export default async function DespatchesPage() {
                   <TableHead className="text-right">Units</TableHead>
                   <TableHead>Service</TableHead>
                   <TableHead>Tracking</TableHead>
+                  <TableHead>Carriage</TableHead>
                   <TableHead className="pr-6">Despatched</TableHead>
                 </TableRow>
               </TableHeader>
@@ -96,6 +101,21 @@ export default async function DespatchesPage() {
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {d.trackingNumber ?? ", "}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const actual = d.carrierAllocations.reduce((s, a) => s + a.amountPence, 0);
+                        const status = carriageStatus(d.expectedCarriagePence, actual);
+                        if (status === "NONE") return <span className="text-muted-foreground">, </span>;
+                        const amount = formatPence(
+                          effectiveCarriagePence(d.expectedCarriagePence, actual),
+                        );
+                        return status === "INVOICED" ? (
+                          <Badge variant="secondary">invoiced {amount}</Badge>
+                        ) : (
+                          <Badge variant="outline">accrued {amount}</Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="pr-6 tabular-nums text-muted-foreground">
                       {d.despatchedAt ? dateFmt.format(d.despatchedAt) : ", "}

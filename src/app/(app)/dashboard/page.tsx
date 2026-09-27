@@ -4,13 +4,19 @@ import {
   Boxes,
   Container,
   Package,
+  PackageX,
   Radio,
   Receipt,
+  ShoppingCart,
+  Truck,
+  Users,
   Warehouse,
 } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { getAvgLandedCosts, getStockByProduct } from "@/lib/queries";
+import { lastMonths, sumByMonth } from "@/lib/engine/monthly";
+import { effectiveCarriagePence } from "@/lib/engine/carriage";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -23,38 +29,148 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MonthlyChart, type MonthPoint } from "./monthly-chart";
 
 export default async function DashboardPage() {
-  const [avgCosts, stock, openPos, recentPos, counts, invoiceAgg] = await Promise.all([
+  const now = new Date();
+  const months = lastMonths(12, now);
+  const windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+  const [
+    avgCosts,
+    stock,
+    physicalProducts,
+    bundleCount,
+    channelCount,
+    orderCount,
+    openOrders,
+    customerCount,
+    openPos,
+    recentPos,
+    soldAgg,
+    invoices,
+    credits,
+    despatches,
+  ] = await Promise.all([
     getAvgLandedCosts(),
     getStockByProduct(),
-    db.purchaseOrder.count({ where: { status: { in: ["DRAFT", "PLACED"] } } }),
+    db.product.findMany({ where: { type: { not: "BUNDLE" } }, select: { id: true } }),
+    db.product.count({ where: { type: "BUNDLE" } }),
+    db.channel.count(),
+    db.salesOrder.count(),
+    db.salesOrder.count({ where: { status: { in: ["DRAFT", "OPEN"] } } }),
+    db.customer.count(),
+    db.purchaseOrder.count({ where: { status: { in: ["DRAFT", "PLACED", "PARTIALLY_RECEIVED"] } } }),
     db.purchaseOrder.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { supplier: { select: { name: true } }, lines: true },
     }),
-    Promise.all([
-      db.product.count({ where: { type: "STANDARD" } }),
-      db.product.count({ where: { type: "BUNDLE" } }),
-      db.channel.count(),
-    ]),
-    db.costInvoice.aggregate({ _sum: { amountPence: true }, _count: true }),
+    db.stockMovement.aggregate({
+      _sum: { quantity: true },
+      where: { type: "DESPATCH", createdAt: { gte: windowStart } },
+    }),
+    db.invoice.findMany({
+      where: { invoiceDate: { gte: windowStart } },
+      select: { invoiceDate: true, netPence: true },
+    }),
+    db.creditNote.findMany({
+      where: { creditDate: { gte: windowStart } },
+      select: { creditDate: true, netPence: true },
+    }),
+    db.despatch.findMany({
+      where: { status: "DESPATCHED", despatchedAt: { gte: windowStart } },
+      select: {
+        despatchedAt: true,
+        expectedCarriagePence: true,
+        lines: { select: { despatchedQty: true, unitCogsPence: true } },
+        carrierAllocations: { select: { amountPence: true } },
+      },
+    }),
   ]);
-  const [skuCount, bundleCount, channelCount] = counts;
 
+  // Stock truth: total units on hand, what they are worth, and how many
+  // physical products have nothing left to sell.
   let stockValue = 0;
+  let stockUnits = 0;
   for (const [productId, qty] of stock) {
+    stockUnits += qty;
     const avg = avgCosts.get(productId);
     if (avg != null) stockValue += qty * avg;
   }
+  const outOfStock = physicalProducts.filter((p) => (stock.get(p.id) ?? 0) <= 0).length;
+  const soldUnits = Math.abs(soldAgg._sum.quantity ?? 0);
+
+  // Expense vs profit, month by month: invoiced revenue net of credits,
+  // against COGS at landed cost plus carriage (cost to serve, actual once
+  // the carrier invoiced, else the accrual).
+  const revenueByMonth = sumByMonth(months, [
+    ...invoices.map((i) => ({ date: i.invoiceDate, amountPence: i.netPence })),
+    ...credits.map((c) => ({ date: c.creditDate, amountPence: -c.netPence })),
+  ]);
+  const expenseByMonth = sumByMonth(
+    months,
+    despatches.map((d) => ({
+      date: d.despatchedAt!,
+      amountPence:
+        Math.round(d.lines.reduce((s, l) => s + l.despatchedQty * (l.unitCogsPence ?? 0), 0)) +
+        effectiveCarriagePence(
+          d.expectedCarriagePence,
+          d.carrierAllocations.reduce((s, a) => s + a.amountPence, 0),
+        ),
+    })),
+  );
+  const chartPoints: MonthPoint[] = months.map((m, i) => ({
+    label: m.label,
+    revenuePence: revenueByMonth[i],
+    expensePence: expenseByMonth[i],
+    profitPence: revenueByMonth[i] - expenseByMonth[i],
+  }));
+  const revenue12m = revenueByMonth.reduce((s, v) => s + v, 0);
+  const expense12m = expenseByMonth.reduce((s, v) => s + v, 0);
+  const profit12m = revenue12m - expense12m;
 
   const kpis = [
     {
-      label: "Stock value @ landed cost",
+      label: "Inventory value @ landed cost",
       value: formatPence(stockValue),
+      sub: `${stockUnits.toLocaleString("en-GB")} units on hand`,
       icon: Warehouse,
       href: "/stock",
+    },
+    {
+      label: "Products",
+      value: physicalProducts.length.toLocaleString("en-GB"),
+      sub: `${bundleCount} bundles · ${channelCount} channels`,
+      icon: Package,
+      href: "/products",
+    },
+    {
+      label: "Sales orders",
+      value: orderCount.toLocaleString("en-GB"),
+      sub: `${openOrders} open`,
+      icon: ShoppingCart,
+      href: "/sales-orders",
+    },
+    {
+      label: "Customers",
+      value: customerCount.toLocaleString("en-GB"),
+      icon: Users,
+      href: "/customers",
+    },
+    {
+      label: "Out of stock",
+      value: outOfStock.toLocaleString("en-GB"),
+      sub: "physical products at zero or oversold",
+      icon: PackageX,
+      href: "/stock",
+    },
+    {
+      label: "Units sold, 12 months",
+      value: soldUnits.toLocaleString("en-GB"),
+      sub: "despatched eaches from the ledger",
+      icon: Truck,
+      href: "/movements",
     },
     {
       label: "Open purchase orders",
@@ -63,18 +179,11 @@ export default async function DashboardPage() {
       href: "/purchase-orders",
     },
     {
-      label: "Landed costs allocated",
-      value: formatPence(invoiceAgg._sum.amountPence ?? 0),
-      sub: `${invoiceAgg._count} invoices`,
+      label: "Profit, 12 months",
+      value: formatPence(profit12m),
+      sub: `${formatPence(revenue12m)} invoiced · ${formatPence(expense12m)} costs`,
       icon: Receipt,
-      href: "/cost-invoices",
-    },
-    {
-      label: "Catalogue",
-      value: `${skuCount} SKUs`,
-      sub: `${bundleCount} bundles · ${channelCount} channels`,
-      icon: Package,
-      href: "/products",
+      href: "/reports",
     },
   ];
 
@@ -82,7 +191,7 @@ export default async function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        hint="Stock value, open purchase orders and channel feeds at a glance."
+        hint="The whole operation at a glance: what the stock is worth, what is selling, what is missing, and twelve months of expense vs profit so the ebb and flow of the trading year is visible. Every number derives live from the ledger and documents, nothing here is a stored counter that can drift."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -107,6 +216,30 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      <Card className="mt-6">
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">
+            Expense vs profit, last 12 months
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              invoiced revenue net of credits, against COGS at landed cost plus carriage
+            </span>
+          </CardTitle>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#94a3b8" }} />
+              Expenses
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#0d9488" }} />
+              Profit
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <MonthlyChart points={chartPoints} />
+        </CardContent>
+      </Card>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <Card>

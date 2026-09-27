@@ -3,7 +3,14 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { getTranchesByProduct } from "@/lib/queries";
+import { getFefoBatches } from "@/lib/batches";
 import { movementTypeLabels } from "@/lib/stock-ledger";
+
+const batchDateFmt = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
 const moveDateFmt = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
@@ -34,8 +41,17 @@ export default async function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [product, tranchesByProduct, movements, suppliers, families, categories, brands] =
-    await Promise.all([
+  const [
+    product,
+    tranchesByProduct,
+    movements,
+    suppliers,
+    families,
+    categories,
+    brands,
+    fefoBatches,
+    warehouseNames,
+  ] = await Promise.all([
     db.product.findUnique({
       where: { id },
       include: {
@@ -59,8 +75,12 @@ export default async function ProductPage({
     db.productFamily.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.brand.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    getFefoBatches({ productIds: [id] }),
+    db.warehouse.findMany({ select: { id: true, name: true } }),
   ]);
   if (!product) notFound();
+  const batchRows = fefoBatches.get(id) ?? [];
+  const warehouseName = new Map(warehouseNames.map((w) => [w.id, w.name]));
 
   const tranches = tranchesByProduct.get(product.id) ?? [];
   const avg = computeAvgLandedCost(tranches);
@@ -201,6 +221,59 @@ export default async function ProductPage({
               barcode: u.barcode,
             }))}
           />
+        ) : null}
+
+        {product.batchTracked ? (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Batches
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  on-hand per lot, derived live from the movement ledger, listed
+                  in FEFO pick order (earliest best-before first)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              {batchRows.length === 0 ? (
+                <p className="px-6 pb-2 text-sm text-muted-foreground">
+                  No batches with stock. Lots are created when deliveries are
+                  received at the Goods-In Station.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">Lot</TableHead>
+                      <TableHead>Best before</TableHead>
+                      <TableHead>Received</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead className="pr-6 text-right">On hand</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {batchRows.map((b) => (
+                      <TableRow key={`${b.batchId}|${b.warehouseId}`}>
+                        <TableCell className="pl-6 font-mono text-xs font-semibold">
+                          {b.batchRef}
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {b.bestBefore ? batchDateFmt.format(b.bestBefore) : ", "}
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {batchDateFmt.format(b.receivedAt)}
+                        </TableCell>
+                        <TableCell>{warehouseName.get(b.warehouseId) ?? b.warehouseId}</TableCell>
+                        <TableCell className="pr-6 text-right font-semibold tabular-nums">
+                          {b.onHand}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         ) : null}
 
         {product.type !== "BUNDLE" ? (

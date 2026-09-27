@@ -29,6 +29,9 @@ interface ConfirmationPayload {
   externalRef?: string; // the WMS's own shipment id, idempotency key
   shippingService?: string;
   trackingNumber?: string;
+  // What the carrier will charge for this shipment (pence), accrued as cost
+  // to serve; the carrier's invoice later matches against it.
+  expectedCarriagePence?: number;
   lines: ConfirmationLine[];
 }
 
@@ -149,6 +152,7 @@ export async function POST(
   const shipped = await despatchDespatch(despatch.id, {
     shippingService: payload.shippingService ?? null,
     trackingNumber: payload.trackingNumber ?? null,
+    expectedCarriagePence: payload.expectedCarriagePence ?? null,
   });
   if (!shipped.ok) {
     // e.g. stock shortage, undo the confirmation attempt entirely.

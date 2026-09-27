@@ -89,18 +89,20 @@ export function PoActions({
           </Button>
         </>
       ) : null}
-      {status === "PLACED" ? (
+      {status === "PLACED" || status === "PARTIALLY_RECEIVED" ? (
         <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
           <DialogTrigger asChild>
             <Button>
-              <PackageCheck /> Receive
+              <PackageCheck /> Receive all outstanding
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Receive purchase order</DialogTitle>
               <DialogDescription>
-                Stock will be added to this location and the order locked.
+                Everything still outstanding lands in this location in one
+                delivery. For part deliveries or batch capture, use the
+                Goods-In Station instead.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-1.5">

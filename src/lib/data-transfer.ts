@@ -465,6 +465,7 @@ export const ENTITIES: EntitySpec[] = [
       { name: "categoryCode", maps: "Product.categoryId", notes: "Auto-created if new" },
       { name: "brandCode", maps: "Product.brandId", notes: "Auto-created if new" },
       { name: "recipeMakes", maps: "Product.bomOutputQty", notes: "ASSEMBLED only: units one batch of the BOM produces (default 1)" },
+      { name: "batchTracked", maps: "Product.batchTracked", notes: "TRUE or FALSE; goods in demands a lot per delivery, despatch picks FEFO. Blank = unchanged" },
     ],
     async exportRows() {
       const rows = await db.product.findMany({
@@ -485,6 +486,7 @@ export const ENTITIES: EntitySpec[] = [
         p.category?.code ?? "",
         p.brand?.code ?? "",
         p.type === "ASSEMBLED" ? String(p.bomOutputQty) : "",
+        p.batchTracked ? "TRUE" : "FALSE",
       ]);
     },
     async importRows(tx, rows, errors) {
@@ -546,6 +548,12 @@ export const ENTITIES: EntitySpec[] = [
           errors.push(`row ${rowNo}: recipeMakes must be a whole number of at least 1`);
           continue;
         }
+        const batchCell = up(cells.batchTracked ?? "");
+        if (batchCell && !["TRUE", "FALSE"].includes(batchCell)) {
+          errors.push(`row ${rowNo}: batchTracked must be TRUE, FALSE, or blank`);
+          continue;
+        }
+        const batchTracked = batchCell ? batchCell === "TRUE" : undefined;
         const familyId = await groupId("family", cells.familyCode ?? "");
         const categoryId = await groupId("category", cells.categoryCode ?? "");
         const brandId = await groupId("brand", cells.brandCode ?? "");
@@ -562,6 +570,7 @@ export const ENTITIES: EntitySpec[] = [
           categoryId,
           brandId,
           bomOutputQty: recipeMakes,
+          batchTracked,
         };
         const found = await tx.product.findUnique({ where: { sku } });
         if (found) {
@@ -583,6 +592,7 @@ export const ENTITIES: EntitySpec[] = [
               categoryId: categoryId ?? null,
               brandId: brandId ?? null,
               bomOutputQty: recipeMakes ?? 1,
+              batchTracked: batchTracked ?? false,
             },
           });
           created++;

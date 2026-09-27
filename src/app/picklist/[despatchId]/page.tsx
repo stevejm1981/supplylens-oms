@@ -1,11 +1,11 @@
 // Printable pick list, deliberately OUTSIDE the (app) layout group so the
 // paper carries no sidebar or chrome, just the list a picker walks the
 // shelves with. Opened from the Despatch Station; auto-triggers the print
-// dialog. When bins and batches land, this grows a location column and a
-// FEFO lot column.
+// dialog. Batch-tracked lines carry their FEFO "take lot" suggestion.
 
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { getFefoBatches, makeFefoSuggester, type BatchSuggestion } from "@/lib/batches";
 import { AutoPrint } from "./auto-print";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", {
@@ -32,7 +32,9 @@ export default async function PicklistPage({
                   uoms: { select: { code: true, barcode: true } },
                   bomLines: {
                     include: {
-                      component: { select: { sku: true, name: true, barcode: true } },
+                      component: {
+                        select: { sku: true, name: true, barcode: true, batchTracked: true },
+                      },
                     },
                   },
                 },
@@ -52,6 +54,23 @@ export default async function PicklistPage({
   if (!despatch) notFound();
   const order = despatch.salesOrder;
 
+  // FEFO "take lot" suggestions for batch-tracked lines, drawn from a shared
+  // pool so two lines of one product never point at the same units.
+  const trackedIds = new Set<string>();
+  for (const l of despatch.lines) {
+    const p = l.orderLine.product;
+    if (p.type === "BUNDLE") {
+      for (const bom of p.bomLines) if (bom.component.batchTracked) trackedIds.add(bom.componentId);
+    } else if (p.batchTracked) {
+      trackedIds.add(p.id);
+    }
+  }
+  const suggest = makeFefoSuggester(
+    trackedIds.size > 0
+      ? await getFefoBatches({ productIds: [...trackedIds], warehouseId: order.warehouseId })
+      : new Map(),
+  );
+
   const rows = despatch.lines.map((l) => {
     const product = l.orderLine.product;
     const uom = l.orderLine.uomCode
@@ -68,6 +87,10 @@ export default async function PicklistPage({
       quantity: l.quantity,
       baseQty: l.quantity * l.orderLine.unitsPerUom,
       isBundle: product.type === "BUNDLE",
+      batches:
+        product.type !== "BUNDLE" && product.batchTracked
+          ? suggest(product.id, l.quantity * l.orderLine.unitsPerUom)
+          : ([] as BatchSuggestion[]),
       // A bundle is virtual, the picker gathers its COMPONENTS. One sub-row
       // per component with the total to pick for this line's bundle quantity.
       components:
@@ -77,6 +100,9 @@ export default async function PicklistPage({
               name: bom.component.name,
               barcode: bom.component.barcode ?? ", ",
               quantity: bom.quantity * l.quantity,
+              batches: bom.component.batchTracked
+                ? suggest(bom.componentId, bom.quantity * l.quantity)
+                : ([] as BatchSuggestion[]),
             }))
           : [],
     };
@@ -143,6 +169,12 @@ export default async function PicklistPage({
                     virtual bundle, pick the components below, pack together
                   </span>
                 ) : null}
+                {r.batches.map((b) => (
+                  <span key={b.batchRef} className="block text-xs font-semibold">
+                    Take lot {b.batchRef}
+                    {b.bestBefore ? ` (BBE ${dateFmt.format(b.bestBefore)})` : ""} ×{b.quantity}
+                  </span>
+                ))}
               </td>
               <td className="py-3 text-xs">{r.unit}</td>
               <td className="py-3 text-right">
@@ -159,7 +191,15 @@ export default async function PicklistPage({
                   <span className="ml-4 inline-block size-4 border-2 border-slate-500" />
                 </td>
                 <td className="py-2 pl-4 font-mono text-xs">↳ {c.sku}</td>
-                <td className="py-2 text-xs">{c.name}</td>
+                <td className="py-2 text-xs">
+                  {c.name}
+                  {c.batches.map((b) => (
+                    <span key={b.batchRef} className="block font-semibold">
+                      Take lot {b.batchRef}
+                      {b.bestBefore ? ` (BBE ${dateFmt.format(b.bestBefore)})` : ""} ×{b.quantity}
+                    </span>
+                  ))}
+                </td>
                 <td className="py-2 text-xs">Each</td>
                 <td className="py-2 text-right font-semibold tabular-nums">{c.quantity}</td>
                 <td className="py-2 pl-4 font-mono text-xs">{c.barcode}</td>

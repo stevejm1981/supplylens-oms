@@ -40,6 +40,7 @@ export async function saveProduct(formData: FormData): Promise<ActionResult> {
     baseCostPence: baseCostPence ?? 0,
     sellPricePence: sellPricePence ?? 0,
     type,
+    batchTracked: formData.get("batchTracked") != null,
     supplierId: ((formData.get("supplierId") as string) || null) === "none"
       ? null
       : ((formData.get("supplierId") as string) || null),

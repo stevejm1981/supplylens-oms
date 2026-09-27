@@ -41,6 +41,7 @@ export async function createCostInvoice(input: NewCostInvoice): Promise<ActionRe
     include: {
       product: { select: { weightGrams: true } },
       purchaseOrder: { select: { status: true } },
+      receiptLines: { select: { quantity: true } },
     },
   });
   if (lines.length === 0) {
@@ -88,12 +89,29 @@ export async function createCostInvoice(input: NewCostInvoice): Promise<ActionRe
       });
       // Financials: costs allocated to goods ALREADY on the shelf uplift the
       // stock asset now (Dr Stock / Cr Landed Costs Clearing, which the
-      // supplier's bill clears in the ledger app). Costs on unreceived POs
-      // are picked up by the receipt journal instead.
-      const receivedById = new Map(lines.map((l) => [l.id, l.purchaseOrder.status === "RECEIVED"]));
-      const receivedPortion = outcome.results
-        .filter((r) => receivedById.get(r.lineId))
-        .reduce((s, r) => s + r.amountPence, 0);
+      // supplier's bill clears in the ledger app). Costs on unreceived
+      // quantities are picked up by their receipt journal instead, so with
+      // partial deliveries only the received share uplifts here. Legacy
+      // RECEIVED orders predating goods receipts count as fully received.
+      const receivedFractionById = new Map(
+        lines.map((l) => {
+          const receivedQty = Math.min(
+            l.quantity,
+            l.receiptLines.reduce((s, r) => s + r.quantity, 0),
+          );
+          const fraction =
+            l.purchaseOrder.status === "RECEIVED" && receivedQty === 0
+              ? 1
+              : l.quantity > 0
+                ? receivedQty / l.quantity
+                : 0;
+          return [l.id, fraction];
+        }),
+      );
+      const receivedPortion = outcome.results.reduce(
+        (s, r) => s + Math.round(r.amountPence * (receivedFractionById.get(r.lineId) ?? 0)),
+        0,
+      );
       if (receivedPortion > 0) {
         await recordStockJournal(tx, {
           type: "LANDED_COST",
@@ -123,13 +141,32 @@ export async function deleteCostInvoice(id: string): Promise<ActionResult> {
     const invoice = await db.costInvoice.findUnique({
       where: { id },
       include: {
-        allocations: { include: { poLine: { include: { purchaseOrder: true } } } },
+        allocations: {
+          include: {
+            poLine: {
+              include: { purchaseOrder: true, receiptLines: { select: { quantity: true } } },
+            },
+          },
+        },
       },
     });
     if (!invoice) return { ok: false, error: "Cost invoice not found" };
-    const receivedPortion = invoice.allocations
-      .filter((a) => a.poLine.purchaseOrder.status === "RECEIVED")
-      .reduce((s, a) => s + a.amountPence, 0);
+    // Mirror the create-side rule: reverse only the share that ever hit the
+    // stock account (received quantities; legacy RECEIVED orders in full).
+    const receivedPortion = invoice.allocations.reduce((s, a) => {
+      const l = a.poLine;
+      const receivedQty = Math.min(
+        l.quantity,
+        l.receiptLines.reduce((x, r) => x + r.quantity, 0),
+      );
+      const fraction =
+        l.purchaseOrder.status === "RECEIVED" && receivedQty === 0
+          ? 1
+          : l.quantity > 0
+            ? receivedQty / l.quantity
+            : 0;
+      return s + Math.round(a.amountPence * fraction);
+    }, 0);
     await db.$transaction(async (tx) => {
       if (receivedPortion > 0) {
         // Reverse the uplift so the books match the removed allocation.
