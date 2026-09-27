@@ -250,7 +250,7 @@ export function PortalAccessDialog({
             <div className="min-w-0 flex-1">
               <Input
                 type="email"
-                placeholder="buyer@customer.co.uk"
+                placeholder="Buyer's email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

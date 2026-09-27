@@ -94,8 +94,8 @@ export function SignUpForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="grid gap-4">
-          <Field id="company" label="Company name" value={company} onChange={setCompany} placeholder="Equinox Kombucha" />
-          <Field id="name" label="Your name" value={name} onChange={setName} placeholder="Ben Costello" />
+          <Field id="company" label="Company name" value={company} onChange={setCompany} />
+          <Field id="name" label="Your name" value={name} onChange={setName} />
           <Field id="email" label="Email" type="email" value={email} onChange={setEmail} />
           <Field id="password" label="Password (8+ characters)" type="password" value={password} onChange={setPassword} />
           <Button type="submit" disabled={pending}>

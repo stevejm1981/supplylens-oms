@@ -248,7 +248,6 @@ export function UsersCard({
                 <Input
                   id="inv-email"
                   type="email"
-                  placeholder="andy@equinoxkombucha.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
