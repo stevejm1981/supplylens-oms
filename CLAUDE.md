@@ -37,6 +37,10 @@
   brand names in customer-facing materials.
 - Never Intl-format dates in SSR'd client components — format server-side and
   pass strings (hydration).
+- Identity inputs (name, email, company) carry NO placeholder: greyed example
+  text reads as prefilled data, and never put a real person or company in any
+  placeholder. Unlabelled inputs get an instruction ("Buyer's email address"),
+  not a value-shaped example.
 - The dev server holds a stale Prisma client after `prisma generate` —
   restart it (`pkill -f "next dev"`) after schema changes.
 - `prisma migrate dev` blocks non-interactively on warnings — hand-author the

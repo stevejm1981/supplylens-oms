@@ -198,7 +198,7 @@ export default async function ReportsPage() {
     <div>
       <PageHeader
         title="Reports"
-        hint={`Sales made = dispatched + invoiced orders in the last ${WINDOW_DAYS} days. Margin uses the COGS snapshot taken at dispatch, average landed cost, not supplier price.`}
+        hint={`The trading picture for the last ${WINDOW_DAYS} days: revenue, margin at true landed cost, top products, channels, and the salesperson leaderboard. Credits net off automatically, and margin uses the COGS snapshot taken at despatch, average landed cost, not supplier price.`}
       />
 
       {orderCount === 0 ? (

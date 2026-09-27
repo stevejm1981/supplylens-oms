@@ -48,7 +48,7 @@ export default async function StockPage() {
     <div>
       <PageHeader
         title="Stock"
-        hint="Stock on hand across warehouses, valued at average landed cost."
+        hint="How much of everything you hold and what it is worth at average landed cost. On hand is physical, committed is promised to open orders, reserved is ring-fenced, and Available is what you can still sell; a red negative means oversold. Click any product for its warehouse and batch detail."
       />
 
       {rows.length === 0 ? (

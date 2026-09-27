@@ -50,7 +50,7 @@ export default async function InvoicesPage() {
     <div>
       <PageHeader
         title="Invoices"
-        hint="The invoice register, raised from dispatched sales orders. In a full build these push straight into QuickBooks."
+        hint="Invoices raised from despatched orders, with payment tracking built in: Mark paid stamps the date, and anything past its due date flags itself Overdue. In production these sync to your ledger app and payment confirmations flow back through the API."
       />
 
       {invoices.length === 0 ? (

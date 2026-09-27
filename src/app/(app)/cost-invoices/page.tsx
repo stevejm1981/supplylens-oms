@@ -38,7 +38,7 @@ export default async function CostInvoicesPage() {
     <div>
       <PageHeader
         title="Cost Invoices"
-        hint="Freight, duty and other landed costs, allocated across purchase order lines."
+        hint="Freight, duty, insurance, and handling bills, spread across the purchase orders they belong to. Attach one with New cost invoice and every affected product's landed cost re-prices instantly, even when the bill arrives weeks after the goods."
       >
         <Button asChild>
           <Link href="/cost-invoices/new">

@@ -41,7 +41,7 @@ export default async function CreditsPage() {
     <div>
       <PageHeader
         title="Credits"
-        hint="Credit notes raised against invoiced orders. Restocked credits return goods and reverse COGS; write-offs refund revenue only."
+        hint="Credit notes against invoiced orders. Tick restock and the goods come back into stock with their cost reversed; leave it off for a money-only refund. Reports nets every credit off revenue and margin automatically."
       />
 
       {credits.length === 0 ? (

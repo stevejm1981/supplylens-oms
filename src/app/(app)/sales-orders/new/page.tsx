@@ -53,7 +53,7 @@ export default async function NewSalesOrderPage() {
     <div>
       <PageHeader
         title="New sales order"
-        hint="Pick the customer first, their default salesperson and warehouse pre-fill, but stay editable."
+        hint="Pick the customer first: salesperson, warehouse, delivery details, and prices (their price list when one exists) pre-fill but stay editable. Sell in eaches or in the product's pack sizes."
       />
       <SoForm
         customers={customers}

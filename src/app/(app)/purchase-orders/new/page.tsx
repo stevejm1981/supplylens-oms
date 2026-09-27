@@ -16,7 +16,7 @@ export default async function NewPurchaseOrderPage() {
     <div>
       <PageHeader
         title="New purchase order"
-        hint="Group POs sharing a container with the same container ref, cost invoices can then split across them."
+        hint="Choose the supplier, add lines (unit costs pre-fill from each product, override with the quoted price), and give orders sharing a container the same container ref so cost invoices can split across them later."
       />
       <PoForm suppliers={suppliers} products={products} />
     </div>

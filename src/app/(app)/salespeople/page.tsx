@@ -34,7 +34,7 @@ export default async function SalesPeoplePage() {
     <div>
       <PageHeader
         title="Salespeople"
-        hint="Order owners. Every sales order carries one; customers can carry a default."
+        hint="The order owners. Every sales order carries one, customers can set a default so it pre-fills, and Reports ranks the team by revenue and margin."
       >
         <SalesPersonFormDialog />
       </PageHeader>

@@ -47,7 +47,7 @@ export default async function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        hint="Make the OMS speak your language without bending its rules. Number prefixes brand your references; status labels rename what people see while the canonical codes underneath, the path every order walks, and what the API returns, never change. That split is deliberate: integrations stay stable however the labels read."
+        hint="Make the paperwork yours: document number prefixes, the display names of statuses, the default VAT treatment, plus your organisation details and team. Renaming a status changes what people see, never how the system behaves, so every integration stays stable while the screens speak your language."
       />
       <div className="mb-6 grid gap-6">
         <OrgCard

@@ -64,7 +64,7 @@ export default async function ReturnsPage() {
     <div>
       <PageHeader
         title="Returns"
-        hint="Customer returns (RMA) come back against sales orders, receive them with restock/write-off triage and the credit raises itself. Supplier returns (RTV) send goods back to vendors."
+        hint="Goods coming back, both directions. Book a customer return (RMA) from its sales order, receive it deciding per line what restocks and what writes off, and the credit note raises itself. Supplier returns (RTV) send stock back to vendors and track the credit you are owed."
         description={awaiting > 0 ? `${awaiting} customer return${awaiting === 1 ? "" : "s"} awaiting receipt` : undefined}
       >
         <NewSupplierReturnDialog

@@ -32,7 +32,7 @@ export default async function BundlesPage() {
     <div>
       <PageHeader
         title="Bundles & BOMs"
-        hint="Virtual kits, no assembly step. Availability derives from component stock."
+        hint="Kits you sell without building: a bundle is a virtual product whose availability comes straight from its components. Create one with New bundle and add the component lines; ordering it explodes to components on pick lists and stock movements automatically. Assembled products' recipes live here too."
       >
         <ProductFormDialog
           suppliers={suppliers}

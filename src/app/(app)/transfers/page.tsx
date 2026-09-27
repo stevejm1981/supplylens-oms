@@ -50,7 +50,7 @@ export default async function TransfersPage() {
     <div>
       <PageHeader
         title="Warehouse transfers"
-        hint="Move stock between warehouses in one step, the ledger records a paired out/in under the same reference, and per-warehouse availability recalculates instantly."
+        hint="Move stock between warehouses. New warehouse transfer moves the lines in one step; the ledger records the out and the in under one reference and per-warehouse availability updates instantly."
       >
         <NewTransferDialog products={products} warehouses={warehouses} levels={levels} />
       </PageHeader>

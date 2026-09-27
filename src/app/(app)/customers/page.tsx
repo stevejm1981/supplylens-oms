@@ -47,7 +47,7 @@ export default async function CustomersPage() {
     <div>
       <PageHeader
         title="Customers"
-        hint="Who you sell to. Default salesperson and warehouse set here pre-fill every new sales order."
+        hint="Who you sell to, with the defaults that make order entry quick: salesperson, warehouse, payment terms, and named delivery locations. The pound icon manages a customer's price list; the person icon invites their buyers into the trade portal."
       >
         <CustomerFormDialog salespeople={salespeople} warehouses={warehouses} />
       </PageHeader>

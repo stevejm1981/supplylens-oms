@@ -50,7 +50,7 @@ export default async function ProductsPage() {
     <div>
       <PageHeader
         title="Products"
-        hint="Your SKU catalogue, grouped by family with category and brand filters. Landed cost averages update live as cost invoices land."
+        hint="Everything you stock and sell, one row per SKU. Create with New product, group variants into a family, and filter by category or brand. Open any product for its stock, pack sizes, batches, and cost history; the average landed cost re-prices live as freight and duty invoices land."
       >
         <NewGroupMenu />
         <ProductFormDialog

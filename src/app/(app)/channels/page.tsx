@@ -29,7 +29,7 @@ export default async function ChannelsPage() {
     <div>
       <PageHeader
         title="Channels"
-        hint="Each channel gets its own stock feed, shaped by an ordered rule pipeline."
+        hint="One stock feed per sales channel, shaped by rules you control: hold back a buffer, divide, subtract, blank when out. The channel code is the key SupplyLens uses to route that channel's orders in and its feed out."
       >
         <ChannelFormDialog />
       </PageHeader>

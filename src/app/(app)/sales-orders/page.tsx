@@ -38,7 +38,7 @@ export default async function SalesOrdersPage() {
     <div>
       <PageHeader
         title="Sales Orders"
-        hint="The commercial documents. Fulfilment happens on despatch documents raised against each order, Draft → Open (despatching) → Invoiced."
+        hint="Selling starts here: New sales order picks up the customer's defaults and prices. Orders arrive as Draft (held for review), open when despatching begins, and close when invoiced; amend a held order's quantities with a reason and the originals are kept forever. Shipping happens on despatch documents against each order."
       >
         <Button asChild>
           <Link href="/sales-orders/new">

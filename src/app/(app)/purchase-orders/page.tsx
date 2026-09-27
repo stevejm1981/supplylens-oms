@@ -31,7 +31,7 @@ export default async function PurchaseOrdersPage() {
     <div>
       <PageHeader
         title="Purchase Orders"
-        hint="Container-centric buying. Costs from freight and duty invoices land on these lines."
+        hint="Buying, one order per supplier: raise with New purchase order, Place order once the supplier confirms, then book deliveries in at the Goods-In Station (partial deliveries, batches) or with Receive all outstanding on the order. Give POs sharing a container the same container ref so one freight bill can split across them."
       >
         <Button asChild>
           <Link href="/purchase-orders/new">

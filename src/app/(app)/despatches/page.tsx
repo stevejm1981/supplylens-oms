@@ -42,7 +42,7 @@ export default async function DespatchesPage() {
     <div>
       <PageHeader
         title="Despatches"
-        hint="The fulfilment work queue. Each despatch is one shipment against a sales order, pick it, then despatch it with a tracking number."
+        hint="The fulfilment queue: each despatch is one shipment against a sales order. Pick it, then Despatch with the tracking number and the carriage cost you expect the carrier to charge; stock, COGS, and the accounting journal all move in that click. The carriage chip shows whether the carrier has billed each shipment yet."
         description={openCount > 0 ? `${openCount} awaiting pick or despatch` : undefined}
       />
 

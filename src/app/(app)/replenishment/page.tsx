@@ -80,7 +80,7 @@ export default async function ReplenishmentPage() {
     <div>
       <PageHeader
         title="Replenishment"
-        hint={`Forecasting on what physically shipped: sales velocity over the last ${VELOCITY_WINDOW_DAYS} days (from the despatch ledger, bundle-exploded, pack-converted), days of cover on Available, and a reorder point of velocity × (supplier lead time + ${SAFETY_STOCK_DAYS} safety days). Suggestions top up to velocity × (lead + safety + ${ORDER_CYCLE_DAYS}) and already count inbound POs, so stock on the water is never re-ordered.`}
+        hint={`What to buy next, computed from what actually shipped: sales velocity over the last ${VELOCITY_WINDOW_DAYS} days (from the despatch ledger, bundle-exploded, pack-converted), days of cover on Available, and a reorder point of velocity × (supplier lead time + ${SAFETY_STOCK_DAYS} safety days). Suggestions top up to velocity × (lead + safety + ${ORDER_CYCLE_DAYS}) and already count inbound POs, so stock on the water is never re-ordered.`}
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

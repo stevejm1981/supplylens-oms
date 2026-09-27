@@ -116,7 +116,7 @@ export default async function DespatchStationPage() {
     <div>
       <PageHeader
         title="Despatch Station"
-        hint="The warehouse-app POC: a packing-bench view of the exact same despatch documents the rest of the OMS uses. Pick with barcode scans (product EANs and outer/case GTINs both verify), pack with weights, generate a carrier label (mocked DPD, the real build calls DPD's shipping API on the customer's own account), and confirm. Everything downstream, stock, ledger, COGS, accounting journal, order status, happens through the standard despatch flow."
+        hint="The packing bench. Take the next order from the queue (or tick several and Print job list for one consolidated walk), print its pick list, scan each item to verify (wrong items are refused), pack with weights and the expected carriage cost, generate the label, and Confirm despatch. Stock, COGS, order status, and the accounting journal all update in that final click. The DPD label is mocked in this prototype; the production build prints a real one on your own account."
       />
       <Station queue={queue} />
     </div>

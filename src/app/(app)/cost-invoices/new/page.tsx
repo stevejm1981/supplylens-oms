@@ -29,7 +29,7 @@ export default async function NewCostInvoicePage() {
     <div>
       <PageHeader
         title="New cost invoice"
-        hint="Spread freight, duty or handling across one or more POs, split is penny-exact by design."
+        hint="Pick the purchase orders the bill covers, choose the split basis (value, quantity, or weight), and Save & allocate. The split is penny-exact and landed averages update immediately."
       />
       <InvoiceForm pos={options} />
     </div>

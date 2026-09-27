@@ -26,7 +26,7 @@ export default async function SuppliersPage() {
     <div>
       <PageHeader
         title="Suppliers"
-        hint="Who you buy from, the parties behind your purchase orders."
+        hint="Everyone you buy from. Add one with New supplier before raising their first purchase order; the lead time you set here drives when Replenishment tells you to reorder."
       >
         <SupplierFormDialog />
       </PageHeader>

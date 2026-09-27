@@ -49,7 +49,7 @@ export default async function AdjustmentsPage() {
     <div>
       <PageHeader
         title="Stock adjustments"
-        hint="Stocktake variances, damage and shrinkage, corrections applied instantly with a mandatory reason. Every line lands in the movement ledger, so an auditor can trace any balance back through its adjustments."
+        hint="Fix stock that reality disagrees with: stocktake variances, damage, shrinkage, found stock. New stock adjustment applies the plus or minus lines instantly with a mandatory reason, and every line lands on the movement ledger so the correction stays auditable forever."
       >
         <NewAdjustmentDialog products={products} warehouses={warehouses} levels={levels} />
       </PageHeader>

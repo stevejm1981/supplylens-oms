@@ -42,7 +42,7 @@ export default async function CarrierInvoicesPage() {
     <div>
       <PageHeader
         title="Carrier Invoices"
-        hint="What your carriers charge YOU for outbound deliveries, matched to the sales orders they delivered. The outbound mirror of cost invoices: each despatch accrues its expected carriage when it ships, the carrier's invoice clears the accrual and books only the variance, and true margin per order (revenue minus COGS minus carriage) falls out. Consolidated consignments split across several despatches by value, weight, or manual amounts."
+        hint="What carriers charge YOU for outbound deliveries, matched to the orders they delivered. Enter an expected carriage cost when you despatch, then book the carrier's bill here with New carrier invoice: every order shows whether the carrier has billed it yet, the variance against what you expected, and a true margin with carriage netted off. One consignment covering several orders splits by value, weight, or manual amounts."
       >
         <Button asChild>
           <Link href="/carrier-invoices/new">

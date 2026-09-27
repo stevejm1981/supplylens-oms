@@ -52,7 +52,7 @@ export default async function MovementsPage() {
     <div>
       <PageHeader
         title="Stock Movements"
-        hint="The append-only ledger: every event that changed stock, the document that caused it, and the running balance after, written in the same transaction as the change."
+        hint="The full stock history: every receipt, despatch, adjustment, transfer, return, and build, with the document that caused it and the running balance after. When a number anywhere looks wrong, this page is where you prove what happened; nothing here can be edited or deleted."
         description={`Last ${rows.length} events, newest first`}
       />
       <MovementsTable

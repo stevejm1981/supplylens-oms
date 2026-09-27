@@ -56,7 +56,7 @@ export default async function ReservationsPage() {
     <div>
       <PageHeader
         title="Reservations"
-        hint="Ring-fenced stock, excluded from Available and channel feeds, blocking other despatches. A reservation held for a customer is consumed automatically as their orders despatch: the pre-order mechanism."
+        hint="Ring-fence stock so nothing else can sell it. Reserve stock for a customer and their despatches consume it automatically (the pre-order mechanism), or hold it generally. Reserve against an open PO and the hold activates the instant the goods arrive, no gap for a channel to sell into."
         description={active > 0 ? `${active} active hold${active === 1 ? "" : "s"}` : undefined}
       >
         <NewReservationDialog

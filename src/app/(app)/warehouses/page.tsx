@@ -32,7 +32,7 @@ export default async function WarehousesPage() {
     <div>
       <PageHeader
         title="Warehouses"
-        hint="Where stock lives. Receiving, dispatch and stock views all run against these, the default is pre-selected everywhere."
+        hint="Every location stock can live in. Add one with New warehouse; the default pre-selects on orders and receipts, and each customer can carry their own despatch warehouse. Stock, availability, and transfers all run per warehouse."
       >
         <WarehouseFormDialog />
       </PageHeader>
