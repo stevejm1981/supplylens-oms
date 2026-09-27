@@ -1,0 +1,36 @@
+:root, [data-theme="a-light"]{--ledger-pine:#0f3a2e;--ledger-forest:#1d5a47;--ledger-mint:#5fbf9a;--ledger-sage:#d6e6dd;--ledger-vermilion:#c2461f;--ledger-coral:#f07a52;--ledger-ink:#16211d;--ledger-stone:#7d786c;--ledger-paper:#f5f3ee;--signal-yellow:#f2c230;--signal-butter:#fbecb8;--signal-ochre:#7a5a00;--signal-clay:#b3402a;--signal-terracotta:#ec7a5f;--signal-black:#141414;--signal-graphite:#5c5850;--signal-cream:#fbf8f1;--surface:#f5f3ee;--surface-raised:#ffffff;--surface-sunken:#ebe8e0;--line:#dcd8cd;--line-strong:#7d786c;--ink:#16211d;--ink-muted:#555e59;--brand:#1d5a47;--on-brand:#ffffff;--brand-soft:#d6e6dd;--brand-ink:#1d5a47;--accent:#c2461f;--on-accent:#ffffff;--focus:#c2461f;--st-new-bg:#e2ebf6;--st-new-ink:#1d4f8a;--st-picking-bg:#fbefcf;--st-picking-ink:#6f4a00;--st-dispatched-bg:#dcefe4;--st-dispatched-ink:#1d6440;--st-hold-bg:#e9e6de;--st-hold-ink:#4a463d;--st-exception-bg:#fbe1da;--st-exception-ink:#9c2f18;--shadow-card:0 1px 2px rgba(22,33,29,0.08);}
+[data-theme="a-dark"]{--surface:#101815;--surface-raised:#17221e;--surface-sunken:#0b110f;--line:#26332e;--line-strong:#6b7c75;--ink:#edf1ec;--ink-muted:#a3aea8;--brand:#5fbf9a;--on-brand:#0c1a14;--brand-soft:#1b362d;--brand-ink:#7fd1b0;--accent:#f07a52;--on-accent:#1a0c06;--focus:#f07a52;--st-new-bg:#1a2a40;--st-new-ink:#9cc3f0;--st-picking-bg:#3a2f10;--st-picking-ink:#f2cf7a;--st-dispatched-bg:#15301f;--st-dispatched-ink:#8fd6ab;--st-hold-bg:#2a2a26;--st-hold-ink:#c9c4b8;--st-exception-bg:#3d1a12;--st-exception-ink:#f5a08a;--shadow-card:0 1px 2px rgba(0,0,0,0.5);}
+[data-theme="b-light"]{--surface:#fbf8f1;--surface-raised:#ffffff;--surface-sunken:#f3eee2;--line:#e6dfcf;--line-strong:#8c8373;--ink:#141414;--ink-muted:#5c5850;--brand:#f2c230;--on-brand:#141414;--brand-soft:#fbecb8;--brand-ink:#7a5a00;--accent:#b3402a;--on-accent:#ffffff;--focus:#141414;--st-new-bg:#e2ebf6;--st-new-ink:#1d4f8a;--st-picking-bg:#fbefcf;--st-picking-ink:#6f4a00;--st-dispatched-bg:#dcefe4;--st-dispatched-ink:#1d6440;--st-hold-bg:#ece8de;--st-hold-ink:#4a463d;--st-exception-bg:#fbe1da;--st-exception-ink:#9c2f18;--shadow-card:0 3px 0 rgba(20,20,20,1);}
+[data-theme="b-dark"]{--surface:#121212;--surface-raised:#1c1b19;--surface-sunken:#0a0a09;--line:#2e2c28;--line-strong:#77705f;--ink:#f5f1e6;--ink-muted:#aaa497;--brand:#f5c842;--on-brand:#141414;--brand-soft:#3a3016;--brand-ink:#f5c842;--accent:#ec7a5f;--on-accent:#1a0a05;--focus:#f5c842;--st-new-bg:#1a2a40;--st-new-ink:#9cc3f0;--st-picking-bg:#3a2f10;--st-picking-ink:#f2cf7a;--st-dispatched-bg:#15301f;--st-dispatched-ink:#8fd6ab;--st-hold-bg:#2a2a26;--st-hold-ink:#c9c4b8;--st-exception-bg:#3d1a12;--st-exception-ink:#f5a08a;--shadow-card:0 3px 0 rgba(0,0,0,1);}
+:root{--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;--space-8:64px;--radius-a-sm:2px;--radius-a-md:4px;--radius-b-sm:8px;--radius-b-md:16px;--radius-pill:999px;--font-a-sans:"Schibsted Grotesk", system-ui, sans-serif;--font-a-mono:"IBM Plex Mono", ui-monospace, monospace;--font-b-display:"Bricolage Grotesque", system-ui, sans-serif;--font-b-sans:"Figtree", system-ui, sans-serif;--font-b-mono:"JetBrains Mono", ui-monospace, monospace;}
+/* Concept switches: the colour themes carry colour; these carry type and shape. */
+:root, [data-theme="a-light"], [data-theme="a-dark"] {
+  --ordo-font: var(--font-a-sans);
+  --ordo-display: var(--font-a-sans);
+  --ordo-mono: var(--font-a-mono);
+  --ordo-display-weight: 600;
+  --ordo-track: -0.02em;
+  --ordo-r-control: var(--radius-a-sm);
+  --ordo-r-card: var(--radius-a-md);
+  --ordo-r-badge: var(--radius-a-sm);
+  --ordo-brand-edge: var(--brand);
+  --ordo-label-case: uppercase;
+  --ordo-label-track: 0.06em;
+  --ordo-label-size: 11px;
+}
+[data-theme^="b-"] {
+  --ordo-font: var(--font-b-sans);
+  --ordo-display: var(--font-b-display);
+  --ordo-mono: var(--font-b-mono);
+  --ordo-display-weight: 800;
+  --ordo-track: -0.03em;
+  --ordo-r-control: var(--radius-pill);
+  --ordo-r-card: var(--radius-b-md);
+  --ordo-r-badge: var(--radius-pill);
+  --ordo-brand-edge: var(--ink);
+  --ordo-label-case: none;
+  --ordo-label-track: 0;
+  --ordo-label-size: 13px;
+}
+
+body { margin: 0; background: var(--surface); color: var(--ink); font-family: var(--ordo-font); font-size: 15px; line-height: 22px; }

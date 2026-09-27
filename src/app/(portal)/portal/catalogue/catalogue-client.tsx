@@ -201,7 +201,7 @@ export function Catalogue({
                     {formatPence(item.eachPricePence)}
                   </span>
                   {item.listPriced ? (
-                    <span className="ml-1.5 text-[10px] uppercase tracking-wide text-teal-700">
+                    <span className="ml-1.5 text-[10px] uppercase tracking-wide text-primary">
                       your price
                     </span>
                   ) : null}

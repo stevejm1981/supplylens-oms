@@ -227,11 +227,11 @@ export default async function DashboardPage() {
           </CardTitle>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#94a3b8" }} />
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "var(--line-strong)" }} />
               Expenses
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-sm" style={{ background: "#0d9488" }} />
+              <span className="inline-block size-2.5 rounded-sm" style={{ background: "var(--brand)" }} />
               Profit
             </span>
           </div>

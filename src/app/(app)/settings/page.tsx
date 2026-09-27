@@ -10,6 +10,8 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { SettingsForm } from "./settings-form";
 import { OrgCard, UsersCard } from "./org-users";
+import { AppearanceCard } from "./appearance";
+import { getOrdoTheme } from "@/lib/theme";
 
 export default async function SettingsPage() {
   const settings = await getSettings();
@@ -50,6 +52,7 @@ export default async function SettingsPage() {
         hint="Make the paperwork yours: document number prefixes, the display names of statuses, the default VAT treatment, plus your organisation details and team. Renaming a status changes what people see, never how the system behaves, so every integration stays stable while the screens speak your language."
       />
       <div className="mb-6 grid gap-6">
+        <AppearanceCard theme={await getOrdoTheme()} />
         <OrgCard
           name={org.name}
           vatNumber={org.vatNumber}

@@ -587,8 +587,8 @@ export default async function SalesOrderPage({
                       Cost to serve{carriageInvoiced > 0 && carriageAccrued === 0 ? " (invoiced)" : carriageInvoiced === 0 ? " (accrued)" : ""}
                     </dt>
                     <dd className="text-right tabular-nums">{formatPence(costToServe)}</dd>
-                    <dt className="font-medium text-teal-700">True margin</dt>
-                    <dd className="text-right font-semibold tabular-nums text-teal-700">
+                    <dt className="font-medium text-primary">True margin</dt>
+                    <dd className="text-right font-semibold tabular-nums text-primary">
                       {formatPence(trueMargin)}{" "}
                       {net > 0 ? `(${((trueMargin / net) * 100).toFixed(1)}%)` : ""}
                     </dd>

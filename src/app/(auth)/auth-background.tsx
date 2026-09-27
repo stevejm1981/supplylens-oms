@@ -69,8 +69,12 @@ export function AuthBackground() {
           }
         }
       }
+      // Dot colour follows the Ordo direction: Ledger mint, Signal yellow.
+      const dot = document.documentElement.getAttribute("data-theme")?.startsWith("b")
+        ? "rgba(245, 200, 66, 0.30)"
+        : "rgba(95, 191, 154, 0.30)";
       for (const n of nodes) {
-        ctx.fillStyle = "rgba(94, 234, 212, 0.30)";
+        ctx.fillStyle = dot;
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
         ctx.fill();

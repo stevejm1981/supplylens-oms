@@ -1,14 +1,32 @@
 // The shared signed-out scene: near-black backdrop, seeded static
 // constellation (present from first paint, no JS needed), animated canvas
-// fading in over it, dark theme tokens for the card, one teal hairline.
-// Used by the staff sign-in and the trade portal sign-in, with different
-// branding text. All load-bearing colours are inline styles so a dev-mode
-// stylesheet race can never blank the page.
+// fading in over it, dark theme tokens for the card, one brand hairline.
+// Used by the staff sign-in (Ordo wordmark) and the trade portal sign-in
+// (the merchant's name), accent colours following the Ordo direction. All
+// load-bearing colours are inline styles so a dev-mode stylesheet race can
+// never blank the page.
 
-import { Telescope } from "lucide-react";
 import { AuthBackground } from "@/app/(auth)/auth-background";
+import { getOrdoTheme, themeDirection } from "@/lib/theme";
 
-function StaticConstellation() {
+const DIRECTION_ACCENTS = {
+  ledger: {
+    dot: "rgba(95,191,154,0.30)",
+    accentText: "#5fbf9a",
+    hairline: "linear-gradient(90deg, #5fbf9a, #1d5a47, #5fbf9a)",
+    primary: "#1d5a47",
+    primarySoft: "#5fbf9a",
+  },
+  signal: {
+    dot: "rgba(245,200,66,0.30)",
+    accentText: "#f5c842",
+    hairline: "linear-gradient(90deg, #f5c842, #ec7a5f, #f5c842)",
+    primary: "#f2c230",
+    primarySoft: "#f5c842",
+  },
+} as const;
+
+function StaticConstellation({ dot }: { dot: string }) {
   let seed = 1337;
   const rand = () => {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
@@ -45,7 +63,7 @@ function StaticConstellation() {
         />
       ))}
       {nodes.map((n, i) => (
-        <circle key={i} cx={n.x} cy={n.y} r={n.r} fill="rgba(94,234,212,0.30)" />
+        <circle key={i} cx={n.x} cy={n.y} r={n.r} fill={dot} />
       ))}
     </svg>
   );
@@ -65,48 +83,63 @@ const darkTokens = {
   "--ring": "#2dd4bf",
 } as React.CSSProperties;
 
-export function AuthScene({
+export async function AuthScene({
   heading,
   accent,
   sub,
+  wordmark = false,
   children,
 }: {
-  heading: string;
+  heading?: string;
   accent?: string;
   sub: string;
+  /** Render the Ordo wordmark instead of a text heading (the staff door). */
+  wordmark?: boolean;
   children: React.ReactNode;
 }) {
+  const direction = themeDirection(await getOrdoTheme());
+  const tone = DIRECTION_ACCENTS[direction];
   return (
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden p-6"
       style={{ backgroundColor: "#0a0f12" }}
     >
-      <StaticConstellation />
+      <StaticConstellation dot={tone.dot} />
       <AuthBackground />
 
-      <div className="relative z-10 w-full max-w-md" style={darkTokens}>
+      <div
+        className="relative z-10 w-full max-w-md"
+        style={{ ...darkTokens, "--primary": tone.primary, "--ring": tone.primarySoft } as React.CSSProperties}
+      >
         <div className="mb-8 flex flex-col items-center gap-4">
-          <div
-            className="flex size-14 items-center justify-center rounded-2xl shadow-lg"
-            style={{
-              background: "linear-gradient(135deg, #2dd4bf, #0891b2)",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-            }}
-          >
-            <Telescope className="size-7" style={{ color: "#ffffff" }} />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/brand/${direction}-mark.svg`}
+            alt=""
+            className="size-14 rounded-2xl"
+            style={{ boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }}
+          />
           <div className="text-center">
-            <span className="text-2xl font-semibold tracking-tight" style={{ color: "#ffffff" }}>
-              {heading}
-              {accent ? (
-                <>
-                  {" "}
-                  <span className="font-light" style={{ color: "#5eead4" }}>
-                    {accent}
-                  </span>
-                </>
-              ) : null}
-            </span>
+            {wordmark ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/brand/${direction}-wordmark-reversed.svg`}
+                alt="Ordo"
+                className="mx-auto h-8 w-auto"
+              />
+            ) : (
+              <span className="text-2xl font-semibold tracking-tight" style={{ color: "#ffffff" }}>
+                {heading}
+                {accent ? (
+                  <>
+                    {" "}
+                    <span className="font-light" style={{ color: tone.accentText }}>
+                      {accent}
+                    </span>
+                  </>
+                ) : null}
+              </span>
+            )}
             <p className="mt-1 text-[10px] uppercase" style={{ color: "#64748b", letterSpacing: "0.28em" }}>
               {sub}
             </p>
@@ -118,7 +151,7 @@ export function AuthScene({
         >
           <div
             aria-hidden
-            style={{ height: 2, background: "linear-gradient(90deg, #2dd4bf, #06b6d4, #2dd4bf)" }}
+            style={{ height: 2, background: tone.hairline }}
           />
           <div className="[&>*]:rounded-none [&>*]:border-0 [&>*]:shadow-none [&_.max-w-md]:max-w-none">
             {children}

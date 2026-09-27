@@ -259,7 +259,7 @@ export function CarrierInvoiceForm({ despatches }: { despatches: DespatchOption[
                     return (
                       <label
                         key={d.id}
-                        className={`flex cursor-pointer flex-wrap items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/60 ${on ? "bg-teal-50" : ""}`}
+                        className={`flex cursor-pointer flex-wrap items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/60 ${on ? "bg-accent" : ""}`}
                       >
                         <input
                           type="checkbox"

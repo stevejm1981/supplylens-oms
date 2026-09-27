@@ -77,7 +77,7 @@ export function MonthlyChart({ points }: { points: MonthPoint[] }) {
                 width={barW}
                 height={Math.max(expenseH, p.expensePence > 0 ? 1.5 : 0)}
                 rx="2"
-                fill="#94a3b8"
+                fill="var(--line-strong)"
               >
                 <title>{`${p.label}: expenses ${formatPence(p.expensePence)} (revenue ${formatPence(p.revenuePence)})`}</title>
               </rect>
@@ -87,7 +87,7 @@ export function MonthlyChart({ points }: { points: MonthPoint[] }) {
                 width={barW}
                 height={Math.max(profitH, p.profitPence !== 0 ? 1.5 : 0)}
                 rx="2"
-                fill={profitUp ? "#0d9488" : "#dc2626"}
+                fill={profitUp ? "var(--brand)" : "var(--accent)"}
               >
                 <title>{`${p.label}: profit ${formatPence(p.profitPence)}`}</title>
               </rect>

@@ -272,7 +272,7 @@ export function GoodsInStation({
                 id={`grn-line-${l.poLineId}`}
                 className={`grid gap-2 rounded-lg border px-3 py-2.5 ${
                   highlight === l.poLineId
-                    ? "border-teal-400 bg-teal-50/50"
+                    ? "border-primary bg-accent/60"
                     : complete
                       ? "border-emerald-200 bg-emerald-50/60"
                       : ""

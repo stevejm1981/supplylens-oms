@@ -28,7 +28,6 @@ import {
   ScanBarcode,
   Settings,
   ShoppingCart,
-  Telescope,
   TrendingUp,
   Truck,
   TruckElectric,
@@ -38,6 +37,7 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -128,8 +128,16 @@ export interface SidebarUser {
   role: string;
 }
 
-export function AppSidebar({ user }: { user?: SidebarUser }) {
+export function AppSidebar({
+  user,
+  theme = "a-light",
+}: {
+  user?: SidebarUser;
+  theme?: "a-light" | "a-dark" | "b-light" | "b-dark";
+}) {
   const pathname = usePathname();
+  const direction = theme.startsWith("a") ? "ledger" : "signal";
+  const dark = theme.endsWith("dark");
 
   return (
     <Sidebar collapsible="icon">
@@ -138,13 +146,21 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Telescope className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-semibold">SupplyLens</span>
-                  <span className="truncate text-xs text-sidebar-foreground/70">
-                    OMS
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/brand/${direction}-mark.svg`}
+                  alt=""
+                  className="aspect-square size-8 shrink-0"
+                />
+                <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/brand/${direction}-wordmark${dark ? "-reversed" : ""}.svg`}
+                    alt="Ordo"
+                    className="h-5 w-auto justify-self-start"
+                  />
+                  <span className="truncate text-[10px] text-sidebar-foreground/70">
+                    by Supply Lens
                   </span>
                 </div>
               </Link>
@@ -205,8 +221,11 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
             </form>
           </div>
         ) : null}
-        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-          Prototype · not production
+        <div className="flex items-center justify-between px-2 py-1 group-data-[collapsible=icon]:hidden">
+          <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+            Prototype · not production
+          </span>
+          <ThemeSwitcher theme={theme} />
         </div>
       </SidebarFooter>
     </Sidebar>

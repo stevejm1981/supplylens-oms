@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./ordo.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -127,5 +129,54 @@
   }
   html {
     @apply font-sans;
+  }
+}
+/* ═══ Ordo brand bridge ═══════════════════════════════════════════════════
+   The Ordo kit's semantic tokens (surface/ink/brand/line, per data-theme on
+   <html>: a-light, a-dark, b-light, b-dark) drive the shadcn variables, so
+   every existing component re-skins per direction and mode with no code
+   changes. data-theme is always set by the root layout; the legacy :root
+   palette above is only a first-paint fallback. */
+[data-theme] {
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--on-brand);
+  --secondary: var(--surface-sunken);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--brand-soft);
+  --accent-foreground: var(--ink);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--focus);
+  --radius: var(--ordo-r-card);
+  --chart-1: var(--brand);
+  --sidebar: var(--surface-sunken);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--on-brand);
+  --sidebar-accent: var(--brand-soft);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--focus);
+}
+
+@layer base {
+  [data-theme] body {
+    font-family: var(--ordo-font);
+  }
+  [data-theme] :is(.font-mono, code, kbd, samp, pre) {
+    font-family: var(--ordo-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  [data-theme] :is(h1, h2, h3, .font-heading) {
+    font-family: var(--ordo-display);
+    letter-spacing: var(--ordo-track);
   }
 }
