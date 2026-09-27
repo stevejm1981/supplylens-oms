@@ -46,8 +46,12 @@ export function orderTotalsPence(
 ): OrderTotals {
   const entered = linesNetPence(lines) + (shippingPence || 0);
   if (taxTreatment === "INCLUSIVE") {
-    const netPence = Math.round(entered / (1 + VAT_RATE));
-    return { netPence, vatPence: entered - netPence, grossPence: entered };
+    // Round the TAX component (the VAT fraction, 1/6 at 20%), the net is the
+    // remainder. This is the retailer/Xero convention: £37.59 inc splits as
+    // £6.27 VAT + £31.32 net, not £6.26/£31.33 (rounding the net instead
+    // lands the halfpenny on the wrong side and disagrees with the channel).
+    const vatPence = Math.round((entered * VAT_RATE) / (1 + VAT_RATE));
+    return { netPence: entered - vatPence, vatPence, grossPence: entered };
   }
   if (taxTreatment === "NONE") {
     return { netPence: entered, vatPence: 0, grossPence: entered };

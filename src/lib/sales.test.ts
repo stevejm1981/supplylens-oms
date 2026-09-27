@@ -38,6 +38,14 @@ describe("orderTotalsPence (Xero-style tax treatment)", () => {
     expect(t.netPence + t.vatPence).toBe(t.grossPence); // never a penny adrift
   });
 
+  it("INCLUSIVE rounds the TAX component on the halfpenny, matching the channel", () => {
+    // Real Shopify order: £37.59 inc. The VAT fraction is 626.5p, the
+    // retailer convention rounds the TAX half-up (£6.27) and nets £31.32,
+    // never £6.26/£31.33.
+    const t = orderTotalsPence([{ quantity: 1, unitPricePence: 3759 }], 0, "INCLUSIVE");
+    expect(t).toEqual({ netPence: 3132, vatPence: 627, grossPence: 3759 });
+  });
+
   it("NONE charges no VAT", () => {
     expect(orderTotalsPence(lines, 0, "NONE")).toEqual({
       netPence: 10000,
