@@ -11,6 +11,7 @@ export async function serializeOrder(reference: string) {
     include: {
       customer: { select: { code: true, name: true } },
       channel: { select: { code: true } },
+      warehouse: { select: { code: true } },
       deliveryLocation: { select: { code: true, name: true } },
       lines: { include: { product: { select: { sku: true } }, despatchLines: true } },
       despatches: { include: { carrierAllocations: { select: { amountPence: true } } } },
@@ -44,6 +45,7 @@ export async function serializeOrder(reference: string) {
     isPreOrder: order.isPreOrder,
     customer: order.customer.code,
     channel: order.channel?.code ?? null,
+    warehouse: order.warehouse.code, // where the order fulfils from (fixed at creation)
     externalRef: order.externalRef,
     customerPoNumber: order.customerPoNumber,
     taxTreatment: order.taxTreatment,

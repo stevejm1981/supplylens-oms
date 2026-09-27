@@ -71,6 +71,7 @@ interface IntakeLine {
 interface IntakePayload {
   customer: string; // customer code, e.g. "RANGE"
   channel?: string; // channel code, e.g. "mirakl-tesco"
+  warehouse?: string; // warehouse code to fulfil from, e.g. "LDS"; omit = customer default, then org default
   location?: string; // delivery location code, e.g. "AVONMOUTH-DC3"
   customerPoNumber?: string;
   externalRef?: string; // the channel's own order id, idempotency key
@@ -118,6 +119,17 @@ export async function POST(request: Request) {
     const channel = await db.channel.findUnique({ where: { code: payload.channel } });
     if (!channel) problems.push(`unknown channel code "${payload.channel}"`);
     channelId = channel?.id ?? null;
+  }
+
+  // Explicit warehouse wins; otherwise the customer's default, then the org
+  // default (resolved after validation, below).
+  let explicitWarehouseId: string | null = null;
+  if (payload.warehouse) {
+    const warehouse = await db.warehouse.findUnique({
+      where: { code: payload.warehouse.toUpperCase() },
+    });
+    if (!warehouse) problems.push(`unknown warehouse code "${payload.warehouse}"`);
+    explicitWarehouseId = warehouse?.id ?? null;
   }
 
   // Lines resolve by SKU or barcode, retailers usually only know the EAN.
@@ -231,6 +243,7 @@ export async function POST(request: Request) {
   }
 
   const warehouseId =
+    explicitWarehouseId ??
     customer!.defaultWarehouseId ??
     (await db.warehouse.findFirst({ where: { isDefault: true } }))?.id;
   if (!warehouseId) {
