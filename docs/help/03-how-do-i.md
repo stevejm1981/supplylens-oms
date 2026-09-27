@@ -19,7 +19,7 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 ### How do I invite a colleague?
 
 1. Go to `Settings`, find **Users & invitations**, type their email under **Invite someone**, pick a role (Member or Admin), and click `Create invite`.
-2. Copy the invite link that appears and send it to them yourself (the prototype does not send email). The link works once and expires after seven days; re-inviting the same address refreshes it.
+2. Copy the invite link that appears and send it to them yourself (invites are shareable links, you deliver them). The link works once and expires after seven days; re-inviting the same address refreshes it.
 3. They open the link, set their name and password, and land signed in as part of your organisation.
 
 ### How do I add a warehouse?
@@ -227,7 +227,7 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 ### How does all of this reach my accounts?
 
 1. Every stock event with a value consequence writes a balanced journal into an outbox as it happens: receipts, despatch COGS, adjustments, returns, production, landed costs, carriage. Nothing to prepare at month end.
-2. The sync (or you) drains it: `GET /api/v1/stock-journals?status=PENDING`, post to the ledger app, acknowledge back. The [Financials Map](./33-financials.md) section shows the exact Dr/Cr and Xero treatment for every transaction type.
+2. The sync (or you) drains it: `GET /api/v1/stock-journals?status=PENDING`, post to the ledger app, acknowledge back. The [Financials Map](./34-financials.md) section shows the exact Dr/Cr and Xero treatment for every transaction type.
 
 ## Channels and the trade portal
 
@@ -253,4 +253,4 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 1. `Integrations` → `Generate token`, name it after the system, and copy the token: it is shown once. One token per integration, so each can be revoked alone.
 2. Point the system at `/api/v1` with that token. Orders in, stock and feeds out, despatch and receipt confirmations, invoices, journals: the whole surface is documented under `API Docs`, where you can try any call live.
 
-> **Tip:** Can't find your question? Every module section below carries the deeper explanation and its own walkthrough, and the [Testing Playbook](./37-testing.md) doubles as a checklist of everything the system can do. If a job you need is genuinely missing, that is roadmap feedback, exactly what this guide is for.
+> **Tip:** Can't find your question? Every module section below carries the deeper explanation and its own walkthrough, and the [Testing Playbook](./38-testing.md) doubles as a checklist of everything the system can do. If a job you need is genuinely missing, that is roadmap feedback, exactly what this guide is for.

@@ -15,4 +15,4 @@ The app is now gated: visiting any page signed-out redirects to sign-in. Sign-up
 
 1. Settings → **Organisation**: company name, VAT number and registered address: the details that will print on invoices and other documents.
 
-> **Tip:** The three-phase plan Phase 1 (this) is identity: who you are, which company, what role. Phase 2 scopes every record by organisation so two customers can share a database without seeing each other. Phase 3 swaps this prototype credential layer for Supabase Auth at deployment, the org/membership model is built to survive that swap unchanged.
+> **Tip:** The three-phase plan Phase 1 (this) is identity: who you are, which company, what role. Phase 2 scopes every record by organisation so two customers can share a database without seeing each other. Phase 3 swaps this credential layer for Supabase Auth at deployment, the org/membership model is built to survive that swap unchanged.

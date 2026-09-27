@@ -1,4 +1,4 @@
-// Prototype credential layer, deliberately thin so Supabase Auth can replace
+// Thin credential layer, deliberately minimal so Supabase Auth can replace
 // it at deployment without touching the Organisation/Membership model.
 // Passwords: scrypt (Node built-in, no dependency). Sessions: random token in
 // an httpOnly cookie, backed by a Session row so sign-out works everywhere.

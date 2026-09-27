@@ -223,7 +223,7 @@ export function AppSidebar({
         ) : null}
         <div className="flex items-center justify-between px-2 py-1 group-data-[collapsible=icon]:hidden">
           <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
-            Prototype · not production
+            Every order, in order
           </span>
           <ThemeSwitcher theme={theme} />
         </div>

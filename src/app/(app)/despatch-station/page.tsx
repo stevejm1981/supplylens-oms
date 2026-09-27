@@ -118,7 +118,7 @@ export default async function DespatchStationPage() {
     <div>
       <PageHeader
         title="Despatch Station"
-        hint="The packing bench. Take the next order from the queue (or tick several and Print job list for one consolidated walk), print its pick list, scan each item to verify (wrong items are refused), pack with weights and the expected carriage cost, generate the label, and Confirm despatch. Stock, COGS, order status, and the accounting journal all update in that final click. The DPD label is mocked in this prototype; the production build prints a real one on your own account."
+        hint="The packing bench. Take the next order from the queue (or tick several and Print job list for one consolidated walk), print its pick list, scan each item to verify (wrong items are refused), pack with weights and the expected carriage cost, generate the label, and Confirm despatch. Stock, COGS, order status, and the accounting journal all update in that final click. The DPD label shown is a stand-in; connecting your own DPD account prints the real one."
       />
       <Station queue={queue} />
     </div>

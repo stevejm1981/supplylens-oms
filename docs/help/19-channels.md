@@ -4,7 +4,7 @@
 
 A channel is the trading connection an integration represents: one identity, two directions: **orders sync in** from it (tagged on the sales order), **stock feeds flow out** to it (the rules pipeline). Feeds run on **Available** (on hand − committed − reserved), so pre-sold and reserved stock never reaches a channel.
 
-> **Note:** The concept The channel **code is the join key to the SupplyLens integration it represents, `mirakl-tesco`, `very`, `frasers`. In production, an order synced from Mirakl - Tesco arrives already stamped with that channel; in the prototype you pick it on the sales order to simulate the sync. Manual and wholesale orders simply carry no channel.
+> **Note:** The concept The channel **code is the join key to the SupplyLens integration it represents, `mirakl-tesco`, `very`, `frasers`. In production, an order synced from Mirakl - Tesco arrives already stamped with that channel; in the meantime you pick it on the sales order to simulate the sync. Manual and wholesale orders simply carry no channel.
 
 ## Create a channel
 

@@ -1,5 +1,5 @@
 // Average landed cost, computed on demand from cost tranches. Pure functions only.
-// With no outbound transactions in the prototype, the weighted average over all
+// With costing deliberately simple, the weighted average over all
 // inbound tranches equals a moving average, and late-arriving cost invoices
 // (freight billed weeks after receipt) re-price history correctly for free.
 // A real system with sales would need dated cost layers; deliberately punted.

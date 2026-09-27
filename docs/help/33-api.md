@@ -14,7 +14,16 @@ Every document type is exposed under `/api/v1`, described by an OpenAPI 3.1 spec
 6. Bad codes come back as a **422 with every problem listed at once** ("unknown customer code, unknown SKU…"): one fix pass, not error whack-a-mole.
 7. **Amend with PATCH**: the their previous inventory platform pain, fixed: send only the fields that changed and everything else is retained (explicit `null` clears; lines merge by SKU on drafts: quantity 0 short-cancels but retains the line). Quantity changes require an `amendmentReason` and are written to the order's amendment history with source "API"; originals are never overwritten. Money-moving fields refuse politely after invoicing. The response is the full updated order (including fill rates), so no follow-up GET.
 8. **Sync incrementally**: every document carries `updatedAt`, auto-stamped on any change (child activity bumps the parent: a despatch going out touches its order). Every list endpoint takes `?updatedSince=` so a poller only ever pulls the delta.
-curl -X POST /api/v1/sales-orders \ -H "Authorization: Bearer demo-key-supplylens" \ -d '{ "customer": "RANGE", "channel": "mirakl-tesco", "location": "AVONMOUTH-DC3", "externalRef": "EDI-850-000123", "customerPoNumber": "TR-PO-EDI-850-000123", "shippingPence": 4500, "lines": [ { "sku": "GRD-PIZZA-STONE", "quantity": 25, "unitPricePence": 1499 } ] }' # → { "ok": true, "duplicate": false, "reference": "SO-0016" }
+
+```json
+curl -X POST /api/v1/sales-orders \
+  -H "Authorization: Bearer demo-key-supplylens" \
+  -d '{ "customer": "RANGE", "channel": "mirakl-tesco",
+        "location": "AVONMOUTH-DC3", "externalRef": "EDI-850-000123",
+        "customerPoNumber": "TR-PO-EDI-850-000123", "shippingPence": 4500,
+        "lines": [ { "sku": "GRD-PIZZA-STONE", "quantity": 25, "unitPricePence": 1499 } ] }'
+# → { "ok": true, "duplicate": false, "reference": "SO-0016" }
+```
 
 ## The full surface
 

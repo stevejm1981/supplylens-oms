@@ -1,4 +1,4 @@
-// The OpenAPI 3.1 description of the SupplyLens OMS API.
+// The OpenAPI 3.1 description of the Ordo API.
 // Served unauthenticated so docs tooling can always load it; every operation
 // itself requires the bearer key.
 
@@ -12,14 +12,14 @@ const pence = (description: string) => ({
 const spec = {
   openapi: "3.1.0",
   info: {
-    title: "SupplyLens OMS API",
-    version: "1.0.0-poc",
+    title: "Ordo API",
+    version: "1.0.0",
     description:
-      "Order, stock and document API for the SupplyLens OMS prototype.\n\n" +
+      "Order, stock and document API for Ordo, the order management system by Supply Lens.\n\n" +
       "**Design**: everything resolves by human-stable codes, `customer.code`, `channel.code`, " +
       "`location.code`, product `sku`, so an integration (EDI, Mirakl, Shopify…) never needs " +
       "internal ids. All money is **integer pence**; all stock quantities are whole units.\n\n" +
-      "**EDI POC recipe**: parse the inbound ORDERS/850 in SupplyLens Integrations, then POST it " +
+      "**EDI recipe**: parse the inbound ORDERS/850 in SupplyLens Integrations, then POST it " +
       "here as one JSON body. Use the channel's own order number as `externalRef`, re-sends are " +
       "idempotent per (channel, externalRef). Poll `GET /sales-orders/{reference}` for status + " +
       "tracking to drive the ORDRSP/DESADV back, and push `GET /channels/{code}/feed` outbound.",

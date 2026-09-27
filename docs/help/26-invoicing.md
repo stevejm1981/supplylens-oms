@@ -11,4 +11,4 @@ The invoice register, every invoice raised from a dispatched order, with net / V
 
 > **Note:** Syncing invoices out `GET /api/v1/invoices` returns the full financial document per invoice: customer and channel codes, the buyer's PO number, the delivery location with its sync code, and every line with quantities, units, prices, and nets, plus carriage charged. `?updatedSince=` delta-syncs (marking paid bumps the stamp, so payment changes flow), `?status=` filters UNPAID, OVERDUE, or PAID, and `GET /invoices/{number}` reads one back. Enough to build a Xero invoice or an EDI INVOIC from a single call.
 
-> **Note:** Where this goes next In a full build these push straight into QuickBooks, the SupplyLens platform already has the QuickBooks invoice connector, so the prototype deliberately stops at the register.
+> **Note:** Where this goes next In a full build these push straight into QuickBooks, the SupplyLens platform already has the QuickBooks invoice connector, so Ordo deliberately stops at the register.

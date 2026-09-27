@@ -556,7 +556,7 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
           <p className="text-center font-mono text-lg font-semibold tracking-widest">{tracking}</p>
         </div>
         <p className="border-t bg-slate-50 px-4 py-1.5 text-center text-[10px] text-slate-400">
-          DEMO LABEL, production calls DPD’s shipping API on the customer’s own business account
+          SPECIMEN LABEL, connect your DPD account to print the real one
         </p>
       </div>
       <div className="flex justify-between">
