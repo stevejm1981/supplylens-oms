@@ -42,6 +42,7 @@ const OPEN_FIELDS = new Set([
   "deliveryContact",
   "location",
   "channel",
+  "warehouse",
   "shippingPence",
   "taxTreatment",
   "preOrder",
@@ -82,6 +83,7 @@ export async function PATCH(
     include: {
       customer: { include: { locations: true } },
       lines: { include: { product: true } },
+      despatches: { select: { id: true } },
     },
   });
   if (!order) {
@@ -136,6 +138,19 @@ export async function PATCH(
     // JSON-merge semantics like every other field: the sent list REPLACES the
     // stored list, null clears it. (Tags are plain text, never behaviour.)
     data.tags = patch.tags === null ? [] : normalizeTags(patch.tags);
+  }
+  if (has("warehouse")) {
+    // Re-route fulfilment: allowed until anything ships. Cover holds linked
+    // to the order retarget with it (handled in the transaction below).
+    if (order.despatches.length > 0) {
+      problems.push("warehouse cannot change once a despatch exists");
+    } else {
+      const warehouse = await db.warehouse.findUnique({
+        where: { code: String(patch.warehouse).toUpperCase() },
+      });
+      if (!warehouse) problems.push(`unknown warehouse code "${patch.warehouse}"`);
+      else data.warehouseId = warehouse.id;
+    }
   }
   if (has("shippingPence")) {
     const v = patch.shippingPence;
@@ -324,6 +339,12 @@ export async function PATCH(
       where: { id: order.id },
       data: { ...data, updatedAt: new Date() },
     });
+    if (data.warehouseId) {
+      await tx.stockReservation.updateMany({
+        where: { salesOrderId: order.id, status: { in: ["PENDING", "ACTIVE"] } },
+        data: { warehouseId: data.warehouseId as string },
+      });
+    }
   });
 
   const body = await serializeOrder(order.reference);

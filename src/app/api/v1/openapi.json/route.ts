@@ -230,6 +230,7 @@ const spec = {
         description:
           "Only the fields you send change; explicit `null` clears a nullable field; everything omitted is retained. " +
           "`tags` (document or line level) REPLACES the stored list when sent, `null` clears it. " +
+          "`warehouse` (code) re-routes fulfilment until anything ships; refused once a despatch exists. " +
           "`lines` merges **by SKU** (drafts only): patch `quantity`/`unitPricePence`/`discountPct`/`tags` on a matching line, " +
           "`quantity: 0` removes it, an unseen SKU (with quantity + unitPricePence) adds one. " +
           "Setting `location` re-snapshots the delivery address unless you also send `deliveryAddress`. " +

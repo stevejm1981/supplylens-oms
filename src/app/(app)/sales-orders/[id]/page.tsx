@@ -21,6 +21,7 @@ import { CreateDespatchDialog, DespatchRowActions } from "./despatch-components"
 import { BookReturnDialog } from "./return-dialog";
 import { AmendDialog } from "./amend-dialog";
 import { CoverShortfallButton } from "./cover-shortfall";
+import { ChangeWarehouseDialog } from "./change-warehouse";
 import { getOrderBackorder } from "@/lib/backorder";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -192,6 +193,13 @@ export default async function SalesOrderPage({
               name: l.product.name,
               outstanding: l.quantity - (plannedByLine.get(l.id) ?? 0),
             }))}
+          />
+        ) : null}
+        {order.status !== "INVOICED" && order.despatches.length === 0 ? (
+          <ChangeWarehouseDialog
+            orderId={order.id}
+            currentWarehouseId={order.warehouseId}
+            warehouses={warehouses}
           />
         ) : null}
         <BookReturnDialog

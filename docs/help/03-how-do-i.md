@@ -158,7 +158,7 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 2. Pick the **customer first**: salesperson, warehouse, delivery address, and prices all pre-fill from their record (change any of them freely). Pick a named delivery location if they have several.
 3. Add lines: type to search the product, choose the unit (each, or a pack size, the price scales), set quantity, and a discount % if agreed. Prices come from the customer's price list when one exists, else the sell price.
 4. Add what the order needs: their PO number, required date, carriage charged (Shipping £), VAT treatment (prices entered ex-VAT, inc-VAT, or no VAT), delivery instructions, or a gift message. Tick pre-order to secure stock for it.
-5. **The warehouse dropdown decides where the order fulfils from**: it opens on your default, switches to the customer's default when you pick them, and stays editable until you create the order, after which it is fixed. API orders work the same way, with an optional `warehouse` code to override.
+5. **The warehouse dropdown decides where the order fulfils from**: it opens on your default and switches to the customer's default when you pick them. After creation, `Change warehouse` on the order moves it (stock held for the order follows) until anything ships; once a despatch exists it is fixed. API orders take an optional `warehouse` code at intake and can re-route via PATCH under the same rule.
 6. Click `Create sales order`. It lands as a `Draft`, which means held for review: quantities can still be amended honestly, and the warehouse queue does not despatch drafts you are still checking. Not enough stock? The order page shows a back-order card, see the next question.
 
 ### How do I tag orders and lines?

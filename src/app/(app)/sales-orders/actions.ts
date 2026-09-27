@@ -1012,3 +1012,52 @@ export async function setExpectedCarriage(
   revalidatePath("/carrier-invoices");
   return { ok: true };
 }
+
+/**
+ * Move an order to a different fulfilment warehouse. Allowed until anything
+ * physically ships: once a despatch document exists the pick belongs to a
+ * site and the order stays put (cancel open picking first). Cover holds
+ * linked to the order retarget with it, so back-order stock keeps pointing
+ * at the right shelf. Availability is derived, so it recomputes on its own.
+ */
+export async function changeOrderWarehouse(
+  orderId: string,
+  warehouseId: string,
+): Promise<ActionResult> {
+  const [order, warehouse] = await Promise.all([
+    db.salesOrder.findUnique({
+      where: { id: orderId },
+      include: { despatches: { select: { id: true, status: true } } },
+    }),
+    db.warehouse.findUnique({ where: { id: warehouseId } }),
+  ]);
+  if (!order) return { ok: false, error: "Sales order not found" };
+  if (!warehouse) return { ok: false, error: "Choose a warehouse" };
+  if (order.status === "INVOICED") {
+    return { ok: false, error: "Invoiced orders cannot move warehouse" };
+  }
+  if (order.despatches.length > 0) {
+    return {
+      ok: false,
+      error:
+        "This order already has a despatch document. Cancel the open picking despatch first; despatched shipments fix the warehouse.",
+    };
+  }
+  if (order.warehouseId === warehouseId) return { ok: true };
+  try {
+    await db.$transaction([
+      db.salesOrder.update({ where: { id: orderId }, data: { warehouseId } }),
+      // Cover holds secured for this order follow it to the new site.
+      db.stockReservation.updateMany({
+        where: { salesOrderId: orderId, status: { in: ["PENDING", "ACTIVE"] } },
+        data: { warehouseId },
+      }),
+    ]);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Update failed" };
+  }
+  revalidateSales(orderId);
+  revalidatePath("/despatch-station");
+  revalidatePath("/reservations");
+  return { ok: true };
+}
