@@ -599,11 +599,22 @@ export async function deleteDespatch(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function invoiceSalesOrder(id: string): Promise<ActionResult> {
+/**
+ * Invoice an open order. Fully despatched orders invoice as they stand.
+ * Part-despatched orders invoice with `shortClose`: every short line's
+ * confirmed quantity is amended DOWN to what actually despatched (an audited
+ * amendment; the customer's original quantities are preserved forever), so
+ * the invoice bills exactly what shipped, the way a retailer's GRN matching
+ * will pay it, and the undespatched balance stops queueing anywhere.
+ */
+export async function invoiceSalesOrder(
+  id: string,
+  opts: { shortClose?: boolean } = {},
+): Promise<ActionResult> {
   const order = await db.salesOrder.findUnique({
     where: { id },
     include: {
-      lines: { include: { despatchLines: true } },
+      lines: { include: { despatchLines: true, product: { select: { sku: true } } } },
       invoice: true,
       customer: true,
     },
@@ -613,18 +624,26 @@ export async function invoiceSalesOrder(id: string): Promise<ActionResult> {
     return { ok: false, error: "Only open orders can be invoiced" };
   }
   if (order.invoice) return { ok: false, error: "Already invoiced" };
-  const undelivered = order.lines.filter(
-    (l) => l.despatchLines.reduce((s, d) => s + d.despatchedQty, 0) < l.quantity,
-  );
-  if (undelivered.length > 0) {
+
+  const despatchedFor = (l: (typeof order.lines)[number]) =>
+    l.despatchLines.reduce((s, d) => s + d.despatchedQty, 0);
+  const undelivered = order.lines.filter((l) => despatchedFor(l) < l.quantity);
+  if (undelivered.length > 0 && !opts.shortClose) {
     return {
       ok: false,
-      error: "Despatch all lines before invoicing (partial invoicing is a future step)",
+      error:
+        "Not everything has despatched. Ship the balance, or invoice the despatched quantities (short-closes the rest).",
     };
   }
+  if (order.lines.every((l) => despatchedFor(l) === 0)) {
+    return { ok: false, error: "Nothing has despatched, there is nothing to invoice" };
+  }
 
+  // Bill what shipped: short lines amend down to their despatched quantity
+  // (0 short-cancels but retains the line), originals stay for fill rates.
+  const billedLines = order.lines.map((l) => ({ ...l, quantity: Math.min(l.quantity, despatchedFor(l)) }));
   const { netPence, vatPence } = orderTotalsPence(
-    order.lines,
+    billedLines,
     order.shippingPence,
     order.taxTreatment,
   );
@@ -634,10 +653,25 @@ export async function invoiceSalesOrder(id: string): Promise<ActionResult> {
   );
   try {
     const count = await db.invoice.count();
-    await db.$transaction([
-      db.invoice.create({
+    await db.$transaction(async (tx) => {
+      for (const l of undelivered) {
+        const despatched = despatchedFor(l);
+        await tx.salesOrderLine.update({ where: { id: l.id }, data: { quantity: despatched } });
+        await tx.orderAmendment.create({
+          data: {
+            salesOrderId: order.id,
+            sku: l.product.sku,
+            field: despatched === 0 ? "line-cancelled" : "quantity",
+            oldValue: String(l.quantity),
+            newValue: String(despatched),
+            reason: "Short-closed at invoicing, balance not despatched",
+            source: "UI",
+          },
+        });
+      }
+      await tx.invoice.create({
         data: {
-          number: await nextRef("invoice", count),
+          number: await nextRef("invoice", count, tx),
           salesOrderId: id,
           invoiceDate,
           dueDate,
@@ -645,9 +679,9 @@ export async function invoiceSalesOrder(id: string): Promise<ActionResult> {
           vatPence,
           grossPence: netPence + vatPence,
         },
-      }),
-      db.salesOrder.update({ where: { id }, data: { status: "INVOICED" } }),
-    ]);
+      });
+      await tx.salesOrder.update({ where: { id }, data: { status: "INVOICED" } });
+    });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Invoicing failed" };
   }

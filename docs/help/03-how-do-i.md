@@ -193,7 +193,8 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 ### How do I invoice an order and record payment?
 
 1. On a fully despatched order click `Create invoice`: net, VAT, and the due date from the customer's terms are computed for you.
-2. When the money arrives, `Invoices` → `Mark paid`. Overdue flags itself from the due date; in production your ledger app confirms payments back automatically through the API.
+2. Short shipped and the balance is never coming? Click `Invoice despatched` instead: the invoice bills exactly what shipped, each short line's confirmed quantity is amended down to its despatched quantity (audited, the customer's originals are kept for fill rates), and the undespatched balance stops queueing.
+3. When the money arrives, `Invoices` → `Mark paid`. Overdue flags itself from the due date; in production your ledger app confirms payments back automatically through the API.
 
 ### How do I credit a customer?
 

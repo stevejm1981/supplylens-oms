@@ -159,7 +159,19 @@ export default async function SalesOrderPage({
           </Badge>
         ) : null}
         {order.status !== "DRAFT" ? <StatusBadge status={fulfilment} /> : null}
-        <SoActions id={order.id} status={order.status} fullyDespatched={fullyDespatched} />
+        <SoActions
+          id={order.id}
+          status={order.status}
+          fullyDespatched={fullyDespatched}
+          anythingDespatched={totalDespatched > 0}
+          shortLines={order.lines
+            .filter((l) => (despatchedByLine.get(l.id) ?? 0) < l.quantity)
+            .map((l) => ({
+              sku: l.product.sku,
+              ordered: l.quantity,
+              despatched: despatchedByLine.get(l.id) ?? 0,
+            }))}
+        />
         {order.status === "DRAFT" ? (
           <AmendDialog
             orderId={order.id}
