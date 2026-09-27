@@ -12,4 +12,6 @@ The connection catalogue and the credentials that power it. Cards show what the 
 4. The integration sends it on every call: `Authorization: Bearer oms_…`
 5. The list shows each token's prefix, created date and **last used**: a quick health check that a connection is alive. `Revoke` kills it instantly (requests get 401).
 
+> **Note:** API activity Every authenticated API call is logged with its method, path, and token, and the page shows calls today, calls this month, per-token counts, and the last 15 requests. This is the support and fair-use monitor: API volume is watched, never billed.
+
 > **Tip:** Development key Locally the fixed key `demo-key-supplylens` also works, so the curl examples in this guide run without setup.
