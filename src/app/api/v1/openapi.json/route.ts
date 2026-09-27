@@ -351,7 +351,35 @@ const spec = {
       },
     },
     "/invoices": {
-      get: { summary: "Invoice register", tags: ["Finance"], responses: { "200": { description: "Net/VAT/gross with due dates" } } },
+      get: {
+        summary: "Invoice register with full line detail",
+        tags: ["Finance"],
+        description:
+          "The complete financial document per invoice: customer and channel codes, the buyer's PO number, delivery location (with its sync code), and every line (sku, quantity, unit, per-unit price, discount, net) plus carriage charged, so an accounting sync (Xero) or an EDI INVOIC can be built from one read. Marking an invoice paid bumps updatedAt, so ?updatedSince= delta sync picks up payment-state changes too.",
+        parameters: [
+          { $ref: "#/components/parameters/updatedSince" },
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string", enum: ["UNPAID", "OVERDUE", "PAID"] },
+            description: "Filter on the derived payment status",
+          },
+        ],
+        responses: { "200": { description: "Invoices with lines, totals, due dates, and payment state" } },
+      },
+    },
+    "/invoices/{number}": {
+      get: {
+        summary: "Single invoice readback",
+        tags: ["Finance"],
+        parameters: [
+          { name: "number", in: "path", required: true, schema: { type: "string" }, example: "INV-0012" },
+        ],
+        responses: {
+          "200": { description: "The full invoice document, same shape as the register items" },
+          "404": { description: "Unknown invoice number" },
+        },
+      },
     },
     "/credit-notes": {
       get: {
