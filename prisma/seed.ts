@@ -1067,6 +1067,29 @@ async function main() {
   // both suggest the older elderflower lot first (FEFO).
   await seedSale({ customer: "COZY", ago: 0, status: "DRAFT", po: "CH-77120", lines: [["DRK-ELDER-750", 130, 3.49], ["DRK-GINGER-330", 24, 2.19]] });
 
+  // Channel text tags: free labels riding in with marketplace orders, shown
+  // as chips on the order, the station queue, and the pick list.
+  {
+    const tagged = await db.salesOrder.findFirst({
+      where: { externalRef: "MIRAKL-TSC-291447" },
+      include: { lines: { include: { product: { select: { sku: true } } } } },
+    });
+    if (tagged) {
+      await db.salesOrder.update({
+        where: { id: tagged.id },
+        data: { tags: ["marketplace", "priority"] },
+      });
+      const blanket = tagged.lines.find((l) => l.product.sku === "HMW-BLANKET-GRY");
+      if (blanket) {
+        await db.salesOrderLine.update({ where: { id: blanket.id }, data: { tags: ["fragile"] } });
+      }
+    }
+    const gift = await db.salesOrder.findFirst({ where: { externalRef: "VERY-90337721" } });
+    if (gift) {
+      await db.salesOrder.update({ where: { id: gift.id }, data: { tags: ["gift-wrap"] } });
+    }
+  }
+
   // ── Twelve months of trading history, the dashboard's ebb and flow ───────
   // Garden peaks in summer, homeware peaks at Christmas, January troughs.
   // Stock is restocked by PO-0005 (received a year ago) with EXACTLY the

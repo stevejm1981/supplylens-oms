@@ -58,6 +58,7 @@ export async function serializeOrder(reference: string) {
       giftMessage: order.giftMessage,
     },
     shippingPence: order.shippingPence,
+    tags: order.tags,
     notes: order.notes,
     totals,
     fillRates: fill,
@@ -70,6 +71,7 @@ export async function serializeOrder(reference: string) {
       baseQuantity: l.quantity * l.unitsPerUom, // eaches, what stock actually moves
       unitPricePence: l.unitPricePence,
       discountPct: l.discountPct,
+      tags: l.tags,
       despatchedQty: l.despatchLines.reduce((s, d) => s + d.despatchedQty, 0),
     })),
     despatches: order.despatches.map((d) => {

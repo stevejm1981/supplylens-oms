@@ -110,6 +110,7 @@ export function SoForm({
   const [shippingCharge, setShippingCharge] = useState("");
   const [taxTreatment, setTaxTreatment] = useState(defaultTaxTreatment);
   const [isPreOrder, setIsPreOrder] = useState(false);
+  const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<EditableLine[]>([
     { key: 1, productId: "", uomCode: "each", quantity: "", unitPrice: "", discount: "" },
@@ -218,6 +219,7 @@ export function SoForm({
         shippingPence,
         taxTreatment,
         isPreOrder,
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         notes: notes || null,
         lines: lines.map((l) => ({
           productId: l.productId,
@@ -372,6 +374,18 @@ export function SoForm({
                 </span>
               </span>
             </label>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="tags">Tags (comma separated)</Label>
+            <Input
+              id="tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Free labels shown on the order and the packing bench. Channel
+              orders bring their own through the API.
+            </p>
           </div>
           <div className="grid gap-1.5 sm:col-span-2 lg:col-span-2">
             <Label htmlFor="notes">Notes</Label>

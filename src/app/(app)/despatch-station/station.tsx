@@ -43,6 +43,7 @@ export interface QueueLine {
   unitWeightGrams: number;
   outstanding: number;
   batchNote: string | null; // pre-formatted FEFO "take lot" suggestion (server-side)
+  tags: string[]; // channel text tags ("fragile", "personalised")
 }
 
 export interface QueueOrder {
@@ -52,6 +53,7 @@ export interface QueueOrder {
   channel: string;
   isPreOrder: boolean;
   requiredLabel: string | null; // pre-formatted server-side (hydration-safe)
+  tags: string[]; // channel text tags ("gift-wrap", "priority")
   shippingService: string | null;
   deliveryAddress: string | null;
   deliveryContact: string | null;
@@ -291,6 +293,19 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
                   <span className="font-mono text-sm font-semibold">{o.reference}</span>
                   <span className="block text-sm">{o.customer}</span>
                   <span className="block text-xs text-muted-foreground">{o.channel}</span>
+                  {o.tags.length > 0 ? (
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {o.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex-1 text-sm text-muted-foreground">
                   {o.lines.map((l) => (
@@ -394,6 +409,19 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
                     </span>
                     {l.batchNote ? (
                       <span className="block text-xs font-medium text-amber-700">{l.batchNote}</span>
+                    ) : null}
+                    {l.tags.length > 0 ? (
+                      <span className="mt-0.5 flex flex-wrap gap-1">
+                        {l.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </span>
                     ) : null}
                   </div>
                   <Button variant="outline" size="icon" className="size-7" onClick={() => adjust(l.orderLineId, -1)} disabled={qty === 0}>

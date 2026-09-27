@@ -65,6 +65,7 @@ interface IntakeLine {
   quantity: number; // in the ordered unit (16 = 16 packs when the unit is a pack)
   unitPricePence?: number; // per ordered unit; OMIT to price from the customer's list (or sell price)
   discountPct?: number;
+  tags?: string[]; // free text labels from the channel ("fragile", "personalised")
 }
 
 interface IntakePayload {
@@ -81,6 +82,7 @@ interface IntakePayload {
   shippingInstructions?: string;
   giftMessage?: string;
   shippingPence?: number;
+  tags?: string[]; // document-level text labels ("gift-wrap", "priority")
   notes?: string;
   lines: IntakeLine[];
 }
@@ -256,6 +258,7 @@ export async function POST(request: Request) {
     shippingPence: payload.shippingPence ?? 0,
     taxTreatment: payload.taxTreatment ?? (await getSettings()).defaultTaxTreatment,
     isPreOrder: payload.preOrder ?? false,
+    tags: payload.tags,
     notes: payload.notes ?? null,
     lines: payload.lines.map((l) => {
       const { product, uom } = resolveLine(l)!;
@@ -275,6 +278,7 @@ export async function POST(request: Request) {
             unitsPerUom: uom?.unitsPerUom ?? 1,
           }),
         discountPct: l.discountPct ?? 0,
+        tags: l.tags,
       };
     }),
   });

@@ -87,6 +87,7 @@ export default async function PicklistPage({
       quantity: l.quantity,
       baseQty: l.quantity * l.orderLine.unitsPerUom,
       isBundle: product.type === "BUNDLE",
+      tags: l.orderLine.tags,
       batches:
         product.type !== "BUNDLE" && product.batchTracked
           ? suggest(product.id, l.quantity * l.orderLine.unitsPerUom)
@@ -143,6 +144,15 @@ export default async function PicklistPage({
       {order.isPreOrder ? (
         <p className="mb-4 text-xs font-semibold">★ PRE-ORDER, stock is reserved for this order</p>
       ) : null}
+      {order.tags.length > 0 ? (
+        <p className="mb-4 text-xs">
+          {order.tags.map((tag) => (
+            <span key={tag} className="mr-1.5 inline-block border border-slate-400 px-1.5 py-0.5 font-semibold uppercase">
+              {tag}
+            </span>
+          ))}
+        </p>
+      ) : null}
 
       <table className="w-full border-collapse">
         <thead>
@@ -175,6 +185,15 @@ export default async function PicklistPage({
                     {b.bestBefore ? ` (BBE ${dateFmt.format(b.bestBefore)})` : ""} ×{b.quantity}
                   </span>
                 ))}
+                {r.tags.length > 0 ? (
+                  <span className="mt-0.5 block text-xs">
+                    {r.tags.map((tag) => (
+                      <span key={tag} className="mr-1 inline-block border border-slate-400 px-1 font-semibold uppercase">
+                        {tag}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
               </td>
               <td className="py-3 text-xs">{r.unit}</td>
               <td className="py-3 text-right">

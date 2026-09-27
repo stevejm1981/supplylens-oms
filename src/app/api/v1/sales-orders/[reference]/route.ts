@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { normalizeTags } from "@/lib/tags";
 import { requireApiKey } from "../../auth";
 import { serializeOrder } from "../serialize";
 
@@ -36,6 +37,7 @@ const OPEN_FIELDS = new Set([
   "shippingInstructions",
   "giftMessage",
   "notes",
+  "tags",
   "deliveryAddress",
   "deliveryContact",
   "location",
@@ -55,6 +57,7 @@ const INVOICED_FIELDS = new Set([
   "shippingInstructions",
   "giftMessage",
   "notes",
+  "tags",
   "deliveryAddress",
   "deliveryContact",
 ]);
@@ -129,6 +132,11 @@ export async function PATCH(
       }
     }
   }
+  if (has("tags")) {
+    // JSON-merge semantics like every other field: the sent list REPLACES the
+    // stored list, null clears it. (Tags are plain text, never behaviour.)
+    data.tags = patch.tags === null ? [] : normalizeTags(patch.tags);
+  }
   if (has("shippingPence")) {
     const v = patch.shippingPence;
     if (!Number.isInteger(v) || (v as number) < 0) problems.push("shippingPence must be integer pence ≥ 0");
@@ -178,6 +186,7 @@ export async function PATCH(
     quantity?: number;
     unitPricePence?: number;
     discountPct?: number;
+    tags?: string[] | null; // replaces the line's tags; null clears
   }
   const lineOps: { op: "update" | "create"; lineId?: string; data?: Record<string, unknown> }[] = [];
   const amendments: { sku: string; field: string; oldValue: string; newValue: string }[] = [];
@@ -243,6 +252,9 @@ export async function PATCH(
               problems.push(`invalid discountPct for "${sku}"`);
             else update.discountPct = lp.discountPct;
           }
+          if (lp.tags !== undefined) {
+            update.tags = lp.tags === null ? [] : normalizeTags(lp.tags);
+          }
           if (Object.keys(update).length > 0) lineOps.push({ op: "update", lineId: existing.id, data: update });
         } else {
           const product = await db.product.findUnique({
@@ -269,6 +281,7 @@ export async function PATCH(
                 unitsPerUom: uom?.unitsPerUom ?? 1,
                 unitPricePence: lp.unitPricePence,
                 discountPct: lp.discountPct ?? 0,
+                tags: normalizeTags(lp.tags),
               },
             });
             amendments.push({

@@ -688,6 +688,10 @@ model SalesOrder {
   // goods the moment they land — channels can't feed them, other orders can't
   // despatch them.
   isPreOrder    Boolean     @default(false)
+  // Free-text labels riding in from external channels (or typed on the form):
+  // "gift-wrap", "priority", a marketplace programme. Displayed as chips and
+  // passed through the API untouched; no behaviour ever branches on a tag.
+  tags          String[]    @default([])
   orderDate     DateTime    @default(now())
   requiredDate  DateTime?
   dispatchedAt  DateTime?
@@ -748,6 +752,8 @@ model SalesOrderLine {
   discountPct    Float      @default(0) // 0–100; line net = qty × price × (1 − pct/100)
   // Weighted snapshot of average landed cost across despatches (fractional pence).
   unitCogsPence  Float?
+  // Line-level text tags from the channel ("fragile", "personalised").
+  tags           String[]   @default([])
 
   despatchLines DespatchLine[]
   returnLines   CustomerReturnLine[]

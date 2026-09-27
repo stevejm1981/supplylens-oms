@@ -148,6 +148,11 @@ export default async function SalesOrderPage({
         {isBackordered ? (
           <Badge className="border-transparent bg-amber-100 text-amber-800">Back order</Badge>
         ) : null}
+        {order.tags.map((tag) => (
+          <Badge key={tag} variant="outline" className="font-normal text-muted-foreground">
+            {tag}
+          </Badge>
+        ))}
         {order.status !== "DRAFT" ? <StatusBadge status={fulfilment} /> : null}
         <SoActions id={order.id} status={order.status} fullyDespatched={fullyDespatched} />
         {order.status === "DRAFT" ? (
@@ -342,6 +347,19 @@ export default async function SalesOrderPage({
                           ) : null}
                         </div>
                         <div className="text-xs text-muted-foreground">{line.product.name}</div>
+                        {line.tags.length > 0 ? (
+                          <div className="mt-0.5 flex flex-wrap gap-1">
+                            {line.tags.map((tag) => (
+                              <Badge
+                                key={tag}
+                                variant="outline"
+                                className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {line.originalQty}

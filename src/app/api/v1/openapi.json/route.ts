@@ -171,7 +171,7 @@ const spec = {
         summary: "Create a sales order (the EDI/marketplace intake)",
         tags: ["Sales"],
         description:
-          "Resolves customer/channel/location/SKU codes, applies customer defaults (salesperson, warehouse, delivery location), and creates a DRAFT order. Idempotent per (channel, externalRef).",
+          "Resolves customer/channel/location/SKU codes, applies customer defaults (salesperson, warehouse, delivery location), and creates a DRAFT order. Free-text `tags` ride along at document and line level (trimmed, de-duplicated, display only, no behaviour). Idempotent per (channel, externalRef).",
         requestBody: {
           required: true,
           content: {
@@ -186,8 +186,9 @@ const spec = {
                 taxTreatment: "EXCLUSIVE",
                 shippingService: "Palletways Economy",
                 shippingPence: 4500,
+                tags: ["priority", "trade-show"],
                 lines: [
-                  { sku: "GRD-PIZZA-STONE", quantity: 25, unitPricePence: 1499 },
+                  { sku: "GRD-PIZZA-STONE", quantity: 25, unitPricePence: 1499, tags: ["fragile"] },
                   { sku: "HMW-MUG-SET4", quantity: 40, unitPricePence: 1399, discountPct: 5 },
                 ],
               },
@@ -227,7 +228,8 @@ const spec = {
         tags: ["Sales"],
         description:
           "Only the fields you send change; explicit `null` clears a nullable field; everything omitted is retained. " +
-          "`lines` merges **by SKU** (drafts only): patch `quantity`/`unitPricePence`/`discountPct` on a matching line, " +
+          "`tags` (document or line level) REPLACES the stored list when sent, `null` clears it. " +
+          "`lines` merges **by SKU** (drafts only): patch `quantity`/`unitPricePence`/`discountPct`/`tags` on a matching line, " +
           "`quantity: 0` removes it, an unseen SKU (with quantity + unitPricePence) adds one. " +
           "Setting `location` re-snapshots the delivery address unless you also send `deliveryAddress`. " +
           "After invoicing only logistics/reference fields may change, anything money-moving is refused with a named error. " +

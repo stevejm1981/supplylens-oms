@@ -10,6 +10,7 @@ import { nextRef } from "@/lib/settings";
 import { fefoAllocate } from "@/lib/engine/fefo";
 import { getFefoBatches } from "@/lib/batches";
 import { accrualDelta } from "@/lib/engine/carriage";
+import { normalizeTags } from "@/lib/tags";
 
 export type ActionResult =
   | { ok: true; id?: string }
@@ -22,6 +23,7 @@ export interface NewSalesOrderLine {
   unitsPerUom: number; // conversion snapshot, 1 for each
   unitPricePence: number; // per ordered unit (per pack when uomCode set)
   discountPct: number;
+  tags?: string[]; // free text labels from the channel ("fragile")
 }
 
 
@@ -54,6 +56,7 @@ export async function createSalesOrder(input: {
   shippingPence: number;
   taxTreatment: string;
   isPreOrder: boolean;
+  tags?: string[]; // free text labels from the channel or the form
   notes: string | null;
   lines: NewSalesOrderLine[];
 }): Promise<ActionResult> {
@@ -109,9 +112,12 @@ export async function createSalesOrder(input: {
           ? input.taxTreatment
           : "EXCLUSIVE",
         isPreOrder: input.isPreOrder,
+        tags: normalizeTags(input.tags),
         notes: input.notes?.trim() || null,
         // originalQty preserves what the customer asked for, forever.
-        lines: { create: lines.map((l) => ({ ...l, originalQty: l.quantity })) },
+        lines: {
+          create: lines.map((l) => ({ ...l, tags: normalizeTags(l.tags), originalQty: l.quantity })),
+        },
       },
     });
     revalidateSales(order.id);

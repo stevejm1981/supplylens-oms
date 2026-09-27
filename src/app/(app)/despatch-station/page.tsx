@@ -72,6 +72,7 @@ export default async function DespatchStationPage() {
         channel: o.channel?.name ?? "Manual",
         isPreOrder: o.isPreOrder,
         requiredLabel: o.requiredDate ? dateFmt.format(o.requiredDate) : null,
+        tags: o.tags,
         shippingService: o.shippingService,
         deliveryAddress: o.deliveryAddress,
         deliveryContact: o.deliveryContact,
@@ -105,6 +106,7 @@ export default async function DespatchStationPage() {
               unitWeightGrams: l.product.weightGrams * l.unitsPerUom,
               outstanding,
               batchNote: batchNote || null,
+              tags: l.tags,
             };
           })
           .filter((l) => l.outstanding > 0),
