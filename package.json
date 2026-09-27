@@ -10,7 +10,8 @@
     "seed": "tsx prisma/seed.ts",
     "test:watch": "vitest",
     "check": "tsc --noEmit && vitest run",
-    "seed:shopify": "tsx scripts/seed-shopify-ecom.mts"
+    "seed:shopify": "tsx scripts/seed-shopify-ecom.mts",
+    "seed:morrisons": "tsx scripts/seed-morrisons-atb.mts"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.5",

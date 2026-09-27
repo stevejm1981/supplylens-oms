@@ -1,0 +1,17 @@
+{
+  "customer": "MORRISONS",
+  "channel": "morrisons-as2",
+  "externalRef": "91433986",
+  "customerPoNumber": "91433986",
+  "location": "5010251007630",
+  "taxTreatment": "NONE",
+  "orderDate": "2026-09-27",
+  "requiredDate": "2026-09-28",
+  "notes": "60 DAYS DISCOUNT 0%\nADDITIONAL INFORMATION: IN CASE OF ORDER QUERY PLEASE TELEPHONE: FRESH 0845 611 5000 / AMBIENT 0845 611 5601 IN CASE OF DELIVERY QUERY PLEAS E TELEPHONE 01795 518600",
+  "lines": [
+    { "barcode": "15061051740071", "quantity": 12, "unitPricePence": 3008 },
+    { "barcode": "15061051740163", "quantity": 4, "unitPricePence": 1488 },
+    { "barcode": "15061051740149", "quantity": 20, "unitPricePence": 1380 },
+    { "barcode": "15061051740200", "quantity": 13, "unitPricePence": 1380 }
+  ]
+}
