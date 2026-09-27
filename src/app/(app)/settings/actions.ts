@@ -159,3 +159,16 @@ export async function saveSettings(input: {
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+/** Change the organisation's subscription plan (admin only). */
+export async function setOrganisationPlan(planCode: string): Promise<ActionResult> {
+  const admin = await requireOrgAdmin();
+  if ("error" in admin) return { ok: false, error: admin.error };
+  const { PLANS } = await import("@/lib/plans");
+  if (!PLANS.some((p) => p.code === planCode)) {
+    return { ok: false, error: "Unknown plan" };
+  }
+  await db.organisation.update({ where: { id: admin.orgId }, data: { plan: planCode } });
+  revalidatePath("/settings");
+  return { ok: true };
+}

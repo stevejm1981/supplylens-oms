@@ -130,6 +130,7 @@ async function main() {
           org: {
             create: {
               name: "Greenfield Trading Co.",
+              plan: "GROWTH",
               vatNumber: "GB123456789",
               address: "Unit 4, Meadow Business Park\nNorthampton NN4 7XD",
             },

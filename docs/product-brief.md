@@ -44,3 +44,27 @@ with the integration layer already running real EDI and marketplace traffic
 (SupplyLens), and the cost truth (landed, cost to serve, true margin) that
 none of them can show, which is the number the customer's accountant actually
 asks for.
+
+## Pricing
+
+Bill on the two numbers a customer already thinks in: orders and channels.
+API calls are monitored (support, fair use) but never priced; charging per
+call punishes deep integration, which is the moat.
+
+| Plan | Price / month | Orders included | Extra orders | Channels |
+|---|---|---|---|---|
+| Starter | £249 | 1,000 | 20p each | 3 |
+| Growth | £449 | 3,000 | 15p each | 6 |
+| Scale | £749 | 8,000 | 10p each | 12 |
+| Pro | £1,199 | 20,000 | 6p each | Unlimited |
+| Enterprise | from £1,999 | 50,000+ | 4p each | Unlimited |
+
+The ladder is coherent: each tier's overage cost overtakes the next tier's
+base price at a sensible point (Starter at 3,000 orders costs £649 against
+Growth's £449), so upgrades sell themselves. The metering framework is live
+in the product: the plan sits on the organisation, usage derives per
+calendar month (orders created, channels in use, API calls logged), the
+Settings page shows the month's bill with overage and cheaper-plan advice,
+and the Integrations page carries the API monitor. Soft metering by design:
+nothing is ever blocked, overage bills. Remaining for launch: a billing
+provider (Stripe) to collect it.

@@ -500,6 +500,11 @@ model Organisation {
   name      String
   vatNumber String?
   address   String? // multi-line; will print on documents
+  // Subscription plan code (STARTER/GROWTH/SCALE/PRO/ENTERPRISE). The
+  // catalogue (price, included orders, overage, channel cap) lives in
+  // src/lib/plans.ts; usage is always DERIVED (orders and API calls counted
+  // live per calendar month), never a stored counter.
+  plan      String   @default("STARTER")
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -560,6 +565,22 @@ model Session {
 // API tokens — machine credentials for integrations. The token itself is
 // shown ONCE at creation; only its SHA-256 lives here. Revocation is a
 // timestamp so the audit trail keeps who-had-access history.
+// One row per authenticated API request: the monitor and the metering
+// backbone. Written fire-and-forget by requireApiKey; status is unknown at
+// auth time and deliberately not tracked (volume and provenance are what
+// billing and support need). Aggregate or prune once volumes warrant it.
+model ApiRequestLog {
+  id        String   @id @default(cuid())
+  tokenId   String? // ApiToken id; null = the environment key
+  tokenName String? // display snapshot ("EDI gateway"), survives revocation
+  method    String
+  path      String // route path under /api/v1
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tokenId, createdAt])
+}
+
 model ApiToken {
   id          String    @id @default(cuid())
   name        String // "Mintsoft sync", "EDI gateway"

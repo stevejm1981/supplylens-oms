@@ -73,6 +73,10 @@ are standard core, not add-ons.
   manual matching shipped v38; this is the DPD-volume version.
 - **Cost-to-serve reporting**, carriage cost and true margin rolled up by
   channel and customer on Reports (per-order true margin shipped v38).
+- **Subscription billing (Stripe)**, collect the plan and overage the
+  metering framework already computes; invoices, payment failure handling.
+- **API log roll-up**, aggregate ApiRequestLog into daily counts once
+  volumes warrant it; per-token rate limiting for fair use.
 - **Stocktake count-sheet mode**, export a count sheet per warehouse
   (SKU, expected, blank "counted" column), import it back → one variance
   adjustment document, fully ledgered. Today: full counts via Adjustments.
@@ -129,4 +133,5 @@ bin/zone/rack warehouse layouts (3PL territory), invoice OCR.
 | v42 | Invoice sync surface: the invoices API returns the full financial document (customer/channel codes, buyer PO, GLN-coded delivery location, every line with quantities/units/prices/nets, carriage charged), documented updatedSince delta sync (marking paid bumps the stamp), a derived payment-status filter, and single-invoice readback, enough to build a Xero invoice or an EDI INVOIC from one call |
 | v43 | Invoice despatched quantities: a part-fulfilled order invoices what actually shipped, short-closing the balance (each short line's confirmed quantity amends down to its despatched quantity with an audited amendment, originals kept for fill rates), so wholesale short-ships bill the way retailer GRN matching pays; fully despatched orders invoice unchanged |
 | v44 | Movable fulfilment warehouse: Change warehouse on the order page and warehouse on the API PATCH re-route an order until anything ships (cover holds retarget with it, availability recomputes); refused once a despatch exists |
+| v46 | Plans and metering: the subscription framework (plan on the organisation, code-level catalogue, soft metering), live Plan & usage on Settings (orders vs included, overage bill, cheaper-plan advice, channel headroom), and the API monitor on Integrations (every authenticated call logged per token, counted per day and month, never billed) |
 | v31 | Production orders: DRAFT/IN_PROGRESS/COMPLETED lifecycle, ASSEMBLED product type, components into WIP at start, actuals + absorbed build costs (labour/machine) at completion, finished tranches at true rolled-up cost, operator-first three-button UI, API register; recipe-yield BOMs ("this recipe makes N units") with batch-aware planning |

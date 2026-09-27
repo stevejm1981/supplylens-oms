@@ -11,7 +11,9 @@ import { PageHeader } from "@/components/page-header";
 import { SettingsForm } from "./settings-form";
 import { OrgCard, UsersCard } from "./org-users";
 import { AppearanceCard } from "./appearance";
+import { PlanUsageCard } from "./plan-card";
 import { getOrdoTheme } from "@/lib/theme";
+import { channelHeadroom, getPlan, usageCharge, PLANS } from "@/lib/plans";
 
 export default async function SettingsPage() {
   const settings = await getSettings();
@@ -29,6 +31,20 @@ export default async function SettingsPage() {
       orderBy: { createdAt: "desc" },
     }),
   ]);
+  // Plan & usage: everything derived live for the current calendar month.
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const [ordersThisMonth, channelsInUse, apiCallsThisMonth] = await Promise.all([
+    db.salesOrder.count({ where: { createdAt: { gte: monthStart } } }),
+    db.channel.count(),
+    db.apiRequestLog.count({ where: { createdAt: { gte: monthStart } } }),
+  ]);
+  const plan = getPlan(org.plan);
+  const charge = usageCharge(org.plan, ordersThisMonth);
+  const headroom = channelHeadroom(org.plan, channelsInUse);
+  const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
+    new Date(),
+  );
+
   const counts: Record<DocType, number> = {
     salesOrder: await db.salesOrder.count(),
     despatch: await db.despatch.count(),
@@ -52,6 +68,30 @@ export default async function SettingsPage() {
         hint="Make the paperwork yours: document number prefixes, the display names of statuses, the default VAT treatment, plus your organisation details and team. Renaming a status changes what people see, never how the system behaves, so every integration stays stable while the screens speak your language."
       />
       <div className="mb-6 grid gap-6">
+        <PlanUsageCard
+          canManage={canManage}
+          planCode={plan.code}
+          planName={plan.name}
+          monthLabel={monthLabel}
+          monthlyPence={plan.monthlyPence}
+          includedOrders={plan.includedOrders}
+          extraOrderPence={plan.extraOrderPence}
+          channelLimit={plan.channelLimit}
+          ordersThisMonth={ordersThisMonth}
+          extraOrders={charge.extraOrders}
+          overagePence={charge.overagePence}
+          totalPence={charge.totalPence}
+          betterPlanName={charge.betterPlan?.name ?? null}
+          channelsInUse={channelsInUse}
+          channelsOver={headroom.over}
+          apiCallsThisMonth={apiCallsThisMonth}
+          plans={PLANS.map((pl) => ({
+            code: pl.code,
+            name: pl.name,
+            pricePence: pl.monthlyPence,
+            includedOrders: pl.includedOrders,
+          }))}
+        />
         <AppearanceCard theme={await getOrdoTheme()} />
         <OrgCard
           name={org.name}

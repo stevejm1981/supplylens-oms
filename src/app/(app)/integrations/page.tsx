@@ -13,9 +13,10 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TokensCard } from "./tokens-card";
 
+const timeFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" });
 
 // The catalogue: what the platform connects to. Status is derived,
@@ -116,9 +117,20 @@ const statusStyles: Record<string, string> = {
 
 export default async function IntegrationsPage() {
   const user = (await getCurrentUser())!;
-  const [channels, tokens] = await Promise.all([
+  const dayStart = new Date(new Date().setHours(0, 0, 0, 0));
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const [channels, tokens, callsToday, callsMonth, recentCalls, byToken] = await Promise.all([
     db.channel.findMany({ select: { code: true, name: true } }),
     db.apiToken.findMany({ orderBy: { createdAt: "desc" } }),
+    db.apiRequestLog.count({ where: { createdAt: { gte: dayStart } } }),
+    db.apiRequestLog.count({ where: { createdAt: { gte: monthStart } } }),
+    db.apiRequestLog.findMany({ orderBy: { createdAt: "desc" }, take: 15 }),
+    db.apiRequestLog.groupBy({
+      by: ["tokenName"],
+      where: { createdAt: { gte: monthStart } },
+      _count: true,
+      orderBy: { _count: { tokenName: "desc" } },
+    }),
   ]);
 
   const cards = CATALOGUE.map((def) => {
@@ -148,6 +160,70 @@ export default async function IntegrationsPage() {
             revoked: Boolean(t.revokedAt),
           }))}
         />
+      </div>
+
+      <div className="mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              API activity
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                every authenticated call, per integration; monitored for support and fair use, never billed
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-[240px_1fr]">
+            <div className="grid content-start gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Today</p>
+                <p className="text-2xl font-semibold tabular-nums">{callsToday.toLocaleString("en-GB")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">This month</p>
+                <p className="text-2xl font-semibold tabular-nums">{callsMonth.toLocaleString("en-GB")}</p>
+              </div>
+              <div className="grid gap-1 text-xs text-muted-foreground">
+                {byToken.map((t) => (
+                  <span key={t.tokenName ?? "env"}>
+                    {t.tokenName ?? "environment key"} · {t._count.toLocaleString("en-GB")}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              {recentCalls.length === 0 ? (
+                <p className="py-6 text-sm text-muted-foreground">
+                  No calls logged yet. Every authenticated API request appears here from now on.
+                </p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="py-1.5 pr-4">When</th>
+                      <th className="py-1.5 pr-4">Method</th>
+                      <th className="py-1.5 pr-4">Path</th>
+                      <th className="py-1.5">Token</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentCalls.map((c) => (
+                      <tr key={c.id} className="border-b last:border-0">
+                        <td className="py-1.5 pr-4 tabular-nums text-muted-foreground">
+                          {timeFmt.format(c.createdAt)}
+                        </td>
+                        <td className="py-1.5 pr-4 font-mono text-xs font-semibold">{c.method}</td>
+                        <td className="py-1.5 pr-4 font-mono text-xs">{c.path}</td>
+                        <td className="py-1.5 text-xs text-muted-foreground">
+                          {c.tokenName ?? "environment key"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
