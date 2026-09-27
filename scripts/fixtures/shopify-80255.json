@@ -1,0 +1,21 @@
+{
+  "customer": "SHOPIFY-ECOM",
+  "channel": "shopify",
+  "externalRef": "#80255",
+  "taxTreatment": "INCLUSIVE",
+  "orderDate": "2026-09-27",
+  "shippingService": "Free Shipping! (3-5 working days)",
+  "shippingPence": 0,
+  "deliveryAddress": "Grange Hall Farm\n60 Brewood Road\nWolverhampton\nEngland WV9 5DH\nUnited Kingdom",
+  "deliveryContact": "Margaret Hill, dermamh@gmail.com, +447540955821",
+  "tags": ["Bundle", "Login with Shop", "Shop", "Subscription", "Subscription First Order"],
+  "notes": "Shopify #80255, paid via shopify_payments (shopify Order 13430909436283, FulfillmentOrder 14304306495867).",
+  "lines": [
+    { "sku": "Build A Box", "quantity": 1, "unitPricePence": 3759 },
+    { "sku": "EK-BLO-250", "quantity": 4, "unitPricePence": 500, "discountPct": 100, "tags": ["Blood Orange", "Single Can"] },
+    { "sku": "EK-SL-250 AMB", "quantity": 5, "unitPricePence": 500, "discountPct": 100, "tags": ["Sicilian Lemon Can", "Single Can"] },
+    { "sku": "EK-R&E-250 AMB", "quantity": 5, "unitPricePence": 500, "discountPct": 100, "tags": ["R&E Cans", "Single Can"] },
+    { "sku": "EK-P&M-250", "quantity": 5, "unitPricePence": 500, "discountPct": 100, "tags": ["Pineapple & Mango", "Single Can"] },
+    { "sku": "EK-GIN-250 AMB", "quantity": 5, "unitPricePence": 500, "discountPct": 100, "tags": ["Single Can"] }
+  ]
+}

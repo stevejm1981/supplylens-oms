@@ -171,7 +171,7 @@ const spec = {
         summary: "Create a sales order (the EDI/marketplace intake)",
         tags: ["Sales"],
         description:
-          "Resolves customer/channel/location/SKU codes, applies customer defaults (salesperson, warehouse, delivery location), and creates a DRAFT order. Optional `warehouse` (code) sets where the order fulfils from; omitted, it falls back to the customer's default warehouse, then the organisation default. The warehouse is fixed at creation. Free-text `tags` ride along at document and line level (trimmed, de-duplicated, display only, no behaviour). Idempotent per (channel, externalRef).",
+          "Resolves customer/channel/location/SKU codes, applies customer defaults (salesperson, warehouse, delivery location), and creates a DRAFT order. Optional `warehouse` (code) sets where the order fulfils from; omitted, it falls back to the customer's default warehouse, then the organisation default. The warehouse is fixed at creation. Optional `deliveryAddress`/`deliveryContact` carry a one-off consumer ship-to (the D2C case), overriding any location or customer snapshot. Free-text `tags` ride along at document and line level (trimmed, de-duplicated, display only, no behaviour). Idempotent per (channel, externalRef).",
         requestBody: {
           required: true,
           content: {

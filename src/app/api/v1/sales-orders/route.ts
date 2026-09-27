@@ -73,6 +73,10 @@ interface IntakePayload {
   channel?: string; // channel code, e.g. "mirakl-tesco"
   warehouse?: string; // warehouse code to fulfil from, e.g. "LDS"; omit = customer default, then org default
   location?: string; // delivery location code, e.g. "AVONMOUTH-DC3"
+  // Ad-hoc ship-to for D2C: a consumer's one-off address and contact override
+  // any location/customer snapshot (the normal case for marketplace orders).
+  deliveryAddress?: string;
+  deliveryContact?: string;
   customerPoNumber?: string;
   externalRef?: string; // the channel's own order id, idempotency key
   taxTreatment?: "EXCLUSIVE" | "INCLUSIVE" | "NONE";
@@ -263,8 +267,9 @@ export async function POST(request: Request) {
     requiredDate: payload.requiredDate ?? null,
     customerPoNumber: payload.customerPoNumber ?? null,
     externalRef: payload.externalRef ?? null,
-    deliveryAddress: location?.address ?? customer!.deliveryAddress ?? null,
-    deliveryContact: location?.contact ?? null,
+    deliveryAddress:
+      payload.deliveryAddress?.trim() || (location?.address ?? customer!.deliveryAddress ?? null),
+    deliveryContact: payload.deliveryContact?.trim() || (location?.contact ?? null),
     shippingService: payload.shippingService ?? null,
     shippingInstructions: payload.shippingInstructions ?? null,
     giftMessage: payload.giftMessage ?? null,
