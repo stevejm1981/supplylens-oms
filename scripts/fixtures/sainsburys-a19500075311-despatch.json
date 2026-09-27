@@ -1,0 +1,12 @@
+{
+  "externalRef": "3PL-SHP-A19500075311",
+  "shippingService": "Chilled Network Overnight",
+  "trackingNumber": "CHD-0075-88213",
+  "expectedCarriagePence": 4250,
+  "lines": [
+    { "barcode": "15061051740149", "quantity": 11 },
+    { "barcode": "15061051740224", "quantity": 1 },
+    { "barcode": "15061051740156", "quantity": 2 },
+    { "barcode": "15061051740200", "quantity": 9 }
+  ]
+}

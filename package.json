@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "check": "tsc --noEmit && vitest run",
     "seed:shopify": "tsx scripts/seed-shopify-ecom.mts",
-    "seed:morrisons": "tsx scripts/seed-morrisons-atb.mts"
+    "seed:morrisons": "tsx scripts/seed-morrisons-atb.mts",
+    "seed:sainsburys": "tsx scripts/seed-sainsburys-atb.mts"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.5",

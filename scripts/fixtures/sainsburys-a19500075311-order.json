@@ -1,0 +1,17 @@
+{
+  "customer": "SAINSBURYS",
+  "channel": "sainsburys-as2",
+  "externalRef": "A19500075311",
+  "customerPoNumber": "A19500075311",
+  "location": "5010011090751",
+  "taxTreatment": "NONE",
+  "orderDate": "2026-09-27",
+  "requiredDate": "2026-09-28",
+  "shippingInstructions": "Z929901",
+  "lines": [
+    { "barcode": "15061051740149", "quantity": 13, "unitPricePence": 1332 },
+    { "barcode": "15061051740224", "quantity": 1, "unitPricePence": 1332 },
+    { "barcode": "15061051740156", "quantity": 2, "unitPricePence": 1088 },
+    { "barcode": "15061051740200", "quantity": 9, "unitPricePence": 1332 }
+  ]
+}
