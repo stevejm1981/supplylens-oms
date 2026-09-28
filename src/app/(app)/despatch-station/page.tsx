@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { asAddress, formatAddress } from "@/lib/address";
 import { getFefoBatches, makeFefoSuggester } from "@/lib/batches";
 import { PageHeader } from "@/components/page-header";
 import { Station } from "./station";
@@ -74,7 +75,7 @@ export default async function DespatchStationPage() {
         requiredLabel: o.requiredDate ? dateFmt.format(o.requiredDate) : null,
         tags: o.tags,
         shippingService: o.shippingService,
-        deliveryAddress: o.deliveryAddress,
+        deliveryAddress: formatAddress(asAddress(o.deliveryAddress)) || null,
         deliveryContact: o.deliveryContact,
         shippingInstructions: o.shippingInstructions,
         giftMessage: o.giftMessage,

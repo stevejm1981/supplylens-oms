@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AddressFields } from "@/components/address-fields";
+import type { Address } from "@/lib/address";
 import { saveCustomer } from "./actions";
 
 export interface Option {
@@ -38,7 +40,7 @@ export interface CustomerFormValues {
   code?: string;
   email?: string | null;
   phone?: string | null;
-  deliveryAddress?: string | null;
+  deliveryAddress?: Address | null;
   paymentTermsDays?: number;
   notes?: string | null;
   defaultSalesPersonId?: string | null;
@@ -167,14 +169,12 @@ export function CustomerFormDialog({
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="deliveryAddress">Default delivery address</Label>
-            <Textarea
-              id="deliveryAddress"
-              name="deliveryAddress"
-              rows={3}
-              placeholder={"Unit 4, Meadow Business Park\nNorthampton NN4 7XD"}
-              defaultValue={customer?.deliveryAddress ?? ""}
-            />
+            <Label>Default delivery address</Label>
+            <p className="text-xs text-muted-foreground">
+              Pre-fills new orders. Optional, but when given it needs a name or
+              company, address line 1, city, and postcode.
+            </p>
+            <AddressFields idPrefix="cust-addr" defaultValue={customer?.deliveryAddress} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="notes">Notes</Label>

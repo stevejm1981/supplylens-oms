@@ -132,7 +132,13 @@ async function main() {
               name: "Greenfield Trading Co.",
               plan: "GROWTH",
               vatNumber: "GB123456789",
-              address: "Unit 4, Meadow Business Park\nNorthampton NN4 7XD",
+              address: {
+                company: "Greenfield Trading Co.",
+                line1: "Unit 4, Meadow Business Park",
+                city: "Northampton",
+                postcode: "NN4 7XD",
+                country: "United Kingdom",
+              },
             },
           },
         },
@@ -750,11 +756,11 @@ async function main() {
   ]);
 
   const customerData = [
-    { name: "The Range", code: "RANGE", sp: tommy.id, wh: northampton.id, terms: 60, phone: "01246 555 100", addr: "The Range DC 3\nAvonmouth Way\nBristol BS11 8DD" },
-    { name: "Robert Dyas", code: "RDYAS", sp: sarah.id, wh: northampton.id, terms: 30, phone: "020 7555 2200", addr: "Robert Dyas NDC\nUnit 2, Fleming Way\nCrawley RH10 9JY" },
-    { name: "GardenWorld Online", code: "GWO", sp: james.id, wh: leeds.id, terms: 14, phone: "0113 555 0340", addr: "GardenWorld Fulfilment\nGelderd Road\nLeeds LS12 6EU" },
-    { name: "Harrods Wholesale", code: "HARW", sp: sarah.id, wh: northampton.id, terms: 45, phone: "020 7555 1849", addr: "Harrods Distribution Centre\nOsterley Park\nIsleworth TW7 4RB" },
-    { name: "CozyHome Trade", code: "COZY", sp: tommy.id, wh: northampton.id, terms: 30, phone: "0161 555 7810", addr: "CozyHome Trade Ltd\nUnit 9, Trafford Point\nManchester M17 1WA" },
+    { name: "The Range", code: "RANGE", sp: tommy.id, wh: northampton.id, terms: 60, phone: "01246 555 100", addr: { company: "The Range DC 3", line1: "Avonmouth Way", city: "Bristol", postcode: "BS11 8DD", country: "United Kingdom" } },
+    { name: "Robert Dyas", code: "RDYAS", sp: sarah.id, wh: northampton.id, terms: 30, phone: "020 7555 2200", addr: { company: "Robert Dyas NDC", line1: "Unit 2, Fleming Way", city: "Crawley", province: "West Sussex", postcode: "RH10 9JY", country: "United Kingdom" } },
+    { name: "GardenWorld Online", code: "GWO", sp: james.id, wh: leeds.id, terms: 14, phone: "0113 555 0340", addr: { company: "GardenWorld Fulfilment", line1: "Gelderd Road", city: "Leeds", province: "West Yorkshire", postcode: "LS12 6EU", country: "United Kingdom" } },
+    { name: "Harrods Wholesale", code: "HARW", sp: sarah.id, wh: northampton.id, terms: 45, phone: "020 7555 1849", addr: { company: "Harrods Distribution Centre", line1: "Osterley Park", city: "Isleworth", province: "Greater London", postcode: "TW7 4RB", country: "United Kingdom" } },
+    { name: "CozyHome Trade", code: "COZY", sp: tommy.id, wh: northampton.id, terms: 30, phone: "0161 555 7810", addr: { company: "CozyHome Trade Ltd", line1: "Unit 9, Trafford Point", city: "Manchester", postcode: "M17 1WA", country: "United Kingdom" } },
   ];
   const customers = new Map<string, { id: string; sp: string; wh: string; terms: number }>();
   for (const c of customerData) {
@@ -773,29 +779,30 @@ async function main() {
   }
 
   // ── Named delivery locations (code = API sync key) ───────────────────────
+  type SeedAddress = Record<string, string>;
   const defaultLocation = new Map<
     string,
-    { id: string; address: string; contact: string | null }
+    { id: string; address: SeedAddress; contact: string | null }
   >();
   const locationData: Record<
     string,
-    { code: string; name: string; address: string; contact: string; isDefault: boolean }[]
+    { code: string; name: string; address: SeedAddress; contact: string; isDefault: boolean }[]
   > = {
     RANGE: [
-      { code: "AVONMOUTH-DC3", name: "Avonmouth DC 3", address: "The Range DC 3\nAvonmouth Way\nBristol BS11 8DD", contact: "Goods In, 01246 555 100", isDefault: true },
-      { code: "STORE-112", name: "Store 112, Bristol", address: "The Range Store 112\nEastgate Retail Park\nBristol BS5 6XX", contact: "Store manager, 0117 555 0980", isDefault: false },
+      { code: "AVONMOUTH-DC3", name: "Avonmouth DC 3", address: { name: "Goods In", company: "The Range DC 3", line1: "Avonmouth Way", city: "Bristol", postcode: "BS11 8DD", country: "United Kingdom" }, contact: "Goods In, 01246 555 100", isDefault: true },
+      { code: "STORE-112", name: "Store 112, Bristol", address: { company: "The Range Store 112", line1: "Eastgate Retail Park", city: "Bristol", postcode: "BS5 6XX", country: "United Kingdom" }, contact: "Store manager, 0117 555 0980", isDefault: false },
     ],
     RDYAS: [
-      { code: "CRAWLEY-NDC", name: "Crawley NDC", address: "Robert Dyas NDC\nUnit 2, Fleming Way\nCrawley RH10 9JY", contact: "Goods In, 020 7555 2200", isDefault: true },
+      { code: "CRAWLEY-NDC", name: "Crawley NDC", address: { name: "Goods In", company: "Robert Dyas NDC", line1: "Unit 2, Fleming Way", city: "Crawley", province: "West Sussex", postcode: "RH10 9JY", country: "United Kingdom" }, contact: "Goods In, 020 7555 2200", isDefault: true },
     ],
     GWO: [
-      { code: "LEEDS-FULFIL", name: "Leeds Fulfilment", address: "GardenWorld Fulfilment\nGelderd Road\nLeeds LS12 6EU", contact: "Goods In, 0113 555 0340", isDefault: true },
+      { code: "LEEDS-FULFIL", name: "Leeds Fulfilment", address: { name: "Goods In", company: "GardenWorld Fulfilment", line1: "Gelderd Road", city: "Leeds", province: "West Yorkshire", postcode: "LS12 6EU", country: "United Kingdom" }, contact: "Goods In, 0113 555 0340", isDefault: true },
     ],
     HARW: [
-      { code: "OSTERLEY-DC", name: "Osterley DC", address: "Harrods Distribution Centre\nOsterley Park\nIsleworth TW7 4RB", contact: "Goods In, 020 7555 1849", isDefault: true },
+      { code: "OSTERLEY-DC", name: "Osterley DC", address: { name: "Goods In", company: "Harrods Distribution Centre", line1: "Osterley Park", city: "Isleworth", province: "Greater London", postcode: "TW7 4RB", country: "United Kingdom" }, contact: "Goods In, 020 7555 1849", isDefault: true },
     ],
     COZY: [
-      { code: "TRAFFORD-9", name: "Trafford Point Unit 9", address: "CozyHome Trade Ltd\nUnit 9, Trafford Point\nManchester M17 1WA", contact: "Goods In, 0161 555 7810", isDefault: true },
+      { code: "TRAFFORD-9", name: "Trafford Point Unit 9", address: { name: "Goods In", company: "CozyHome Trade Ltd", line1: "Unit 9, Trafford Point", city: "Manchester", postcode: "M17 1WA", country: "United Kingdom" }, contact: "Goods In, 0161 555 7810", isDefault: true },
     ],
   };
   for (const [custCode, locations] of Object.entries(locationData)) {
@@ -807,7 +814,7 @@ async function main() {
       if (loc.isDefault) {
         defaultLocation.set(custCode, {
           id: created.id,
-          address: created.address,
+          address: loc.address,
           contact: created.contact,
         });
       }

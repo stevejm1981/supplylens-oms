@@ -17,14 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { AddressFields } from "@/components/address-fields";
 import { deleteLocation, saveLocation, setDefaultLocation } from "./actions";
 
 export interface LocationView {
   id: string;
   code: string;
   name: string;
-  address: string;
+  address: string; // formatted server-side
   contact: string | null;
   isDefault: boolean;
 }
@@ -143,8 +143,12 @@ export function LocationsDialog({
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="loc-address">Address</Label>
-            <Textarea id="loc-address" name="address" rows={2} required />
+            <Label>Address</Label>
+            <p className="text-xs text-muted-foreground">
+              Needs at least address line 1, city, and postcode; company falls
+              back to the location name.
+            </p>
+            <AddressFields idPrefix="loc-addr" defaultValue={null} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="loc-contact">Contact</Label>

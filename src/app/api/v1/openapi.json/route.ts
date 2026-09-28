@@ -44,6 +44,22 @@ const spec = {
       },
     },
     schemas: {
+      Address: {
+        type: "object",
+        description:
+          "A structured postal address. Minimum for a delivery address: a `name` or `company` (the customer's name stands in when both are omitted), `line1`, `city`, and `postcode`.",
+        properties: {
+          name: { type: "string", description: "Recipient or contact name", example: "Margaret Hill" },
+          company: { type: "string", example: "The Range DC 3" },
+          line1: { type: "string", example: "Avonmouth Way" },
+          line2: { type: "string" },
+          line3: { type: "string" },
+          city: { type: "string", example: "Bristol" },
+          province: { type: "string", description: "County / province / state" },
+          postcode: { type: "string", example: "BS11 8DD" },
+          country: { type: "string", default: "United Kingdom" },
+        },
+      },
       IntakeLine: {
         type: "object",
         required: ["quantity", "unitPricePence"],
@@ -83,6 +99,15 @@ const spec = {
               "Customer delivery-location code. Omitted → the customer's default location.",
             example: "AVONMOUTH-DC3",
           },
+          deliveryAddress: {
+            description:
+              "One-off ship-to (the D2C case), overriding any location or customer snapshot. Send the structured object; a plain multi-line string is still accepted and parsed best-effort.",
+            oneOf: [
+              { $ref: "#/components/schemas/Address" },
+              { type: "string", description: "Legacy free text, parsed best-effort" },
+            ],
+          },
+          deliveryContact: { type: "string", description: "Phone / contact at the delivery point" },
           customerPoNumber: { type: "string" },
           externalRef: {
             type: "string",
@@ -171,7 +196,7 @@ const spec = {
         summary: "Create a sales order (the EDI/marketplace intake)",
         tags: ["Sales"],
         description:
-          "Resolves customer/channel/location/SKU codes, applies customer defaults (salesperson, warehouse, delivery location), and creates a DRAFT order. Optional `warehouse` (code) sets where the order fulfils from; omitted, it falls back to the customer's default warehouse, then the organisation default. The warehouse is fixed at creation. Optional `deliveryAddress`/`deliveryContact` carry a one-off consumer ship-to (the D2C case), overriding any location or customer snapshot. Free-text `tags` ride along at document and line level (trimmed, de-duplicated, display only, no behaviour). Idempotent per (channel, externalRef).",
+          "Resolves customer/channel/location/SKU codes, applies customer defaults (salesperson, warehouse, delivery location), and creates a DRAFT order. Optional `warehouse` (code) sets where the order fulfils from; omitted, it falls back to the customer's default warehouse, then the organisation default. The warehouse is fixed at creation. Optional `deliveryAddress` (structured object, see the Address schema) and `deliveryContact` carry a one-off consumer ship-to (the D2C case), overriding any location or customer snapshot; the resolved address must include a name or company, line1, city, and postcode. Free-text `tags` ride along at document and line level (trimmed, de-duplicated, display only, no behaviour). Idempotent per (channel, externalRef).",
         requestBody: {
           required: true,
           content: {
@@ -233,7 +258,7 @@ const spec = {
           "`warehouse` (code) re-routes fulfilment until anything ships; refused once a despatch exists. " +
           "`lines` merges **by SKU** (drafts only): patch `quantity`/`unitPricePence`/`discountPct`/`tags` on a matching line, " +
           "`quantity: 0` removes it, an unseen SKU (with quantity + unitPricePence) adds one. " +
-          "Setting `location` re-snapshots the delivery address unless you also send `deliveryAddress`. " +
+          "Setting `location` re-snapshots the delivery address unless you also send `deliveryAddress` (a structured Address object; validated to the same minimum). " +
           "After invoicing only logistics/reference fields may change, anything money-moving is refused with a named error. " +
           "Returns the full updated order, so no follow-up GET is needed.",
         parameters: [

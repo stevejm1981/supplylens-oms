@@ -1,5 +1,3 @@
-customerCode,code,name,address,contact,isDefault
-BRIGHT,SALFORD-DC,Salford DC,"Unit 9, Quayside Park
-Salford M50 3AZ","Goods In, 0161 555 0200",TRUE
-BRIGHT,LEEDS-STORE,Leeds Store,"14 Briggate
-Leeds LS1 6ER",Store Manager,FALSE
+customerCode,code,name,addressName,addressCompany,addressLine1,addressLine2,addressLine3,addressCity,addressProvince,addressPostcode,addressCountry,contact,isDefault
+BRIGHT,SALFORD-DC,Salford DC,Goods In,Brightside Retail,"Unit 9, Quayside Park",,,Salford,Greater Manchester,M50 3AZ,United Kingdom,"Goods In, 0161 555 0200",TRUE
+BRIGHT,LEEDS-STORE,Leeds Store,Store Manager,Brightside Retail,14 Briggate,,,Leeds,West Yorkshire,LS1 6ER,United Kingdom,Store Manager,FALSE

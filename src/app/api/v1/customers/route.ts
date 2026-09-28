@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { asAddress } from "@/lib/address";
 import { parseUpdatedSince, requireApiKey } from "../auth";
 
 export async function GET(request: Request) {
@@ -25,10 +26,11 @@ export async function GET(request: Request) {
       paymentTermsDays: c.paymentTermsDays,
       defaultSalesPerson: c.defaultSalesPerson?.name ?? null,
       defaultWarehouse: c.defaultWarehouse?.code ?? null,
+      deliveryAddress: asAddress(c.deliveryAddress),
       locations: c.locations.map((l) => ({
         code: l.code,
         name: l.name,
-        address: l.address,
+        address: asAddress(l.address),
         contact: l.contact,
         isDefault: l.isDefault,
       })),

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { normalizeAddress, validateAddress, type Address } from "@/lib/address";
 import { generateToken } from "@/lib/auth-crypto";
 import { requireOrgAdmin } from "@/lib/auth";
 import {
@@ -18,18 +20,27 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 export async function saveOrganisation(input: {
   name: string;
   vatNumber: string | null;
-  address: string | null;
+  address: Address | null;
 }): Promise<ActionResult> {
   const admin = await requireOrgAdmin();
   if ("error" in admin) return { ok: false, error: admin.error };
   const name = input.name.trim();
   if (!name) return { ok: false, error: "Company name is required" };
+  const address = normalizeAddress(input.address);
+  if (address) {
+    // Prints on documents, so it needs the postal minimum (the organisation's
+    // own name is the company).
+    const missing = validateAddress({ ...address, company: address.company ?? name });
+    if (missing.length > 0) {
+      return { ok: false, error: `Address needs: ${missing.join(", ")}` };
+    }
+  }
   await db.organisation.update({
     where: { id: admin.orgId },
     data: {
       name,
       vatNumber: input.vatNumber?.trim() || null,
-      address: input.address?.trim() || null,
+      address: address ?? Prisma.DbNull,
     },
   });
   revalidatePath("/", "layout");

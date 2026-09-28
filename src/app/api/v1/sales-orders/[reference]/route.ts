@@ -9,6 +9,8 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { normalizeAddress, parseAddress, validateAddress, type Address } from "@/lib/address";
 import { normalizeTags } from "@/lib/tags";
 import { requireApiKey } from "../../auth";
 import { serializeOrder } from "../serialize";
@@ -117,7 +119,6 @@ export async function PATCH(
     "shippingInstructions",
     "giftMessage",
     "notes",
-    "deliveryAddress",
     "deliveryContact",
   ]) {
     const value = str(key);
@@ -132,6 +133,23 @@ export async function PATCH(
         if (Number.isNaN(date.getTime())) problems.push(`invalid date for "${key}"`);
         else data[key] = date;
       }
+    }
+  }
+  if (has("deliveryAddress")) {
+    // Structured object preferred; a plain string is parsed best-effort;
+    // null clears. A present address must meet the delivery minimum (the
+    // customer's name stands in for a missing company).
+    const raw = patch.deliveryAddress;
+    if (raw === null) data.deliveryAddress = Prisma.DbNull;
+    else {
+      const address =
+        typeof raw === "string" ? parseAddress(raw) : normalizeAddress(raw as Address);
+      const missing = validateAddress({
+        ...address,
+        company: address?.company ?? order.customer.name,
+      });
+      if (missing.length > 0) problems.push(`deliveryAddress needs: ${missing.join(", ")}`);
+      else data.deliveryAddress = address;
     }
   }
   if (has("tags")) {
@@ -185,7 +203,7 @@ export async function PATCH(
       } else {
         data.deliveryLocationId = location.id;
         // Re-snapshot unless the caller explicitly set address/contact too.
-        if (!("deliveryAddress" in patch)) data.deliveryAddress = location.address;
+        if (!("deliveryAddress" in patch)) data.deliveryAddress = location.address ?? Prisma.DbNull;
         if (!("deliveryContact" in patch)) data.deliveryContact = location.contact;
       }
     }

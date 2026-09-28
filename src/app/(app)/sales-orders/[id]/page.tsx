@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
+import { asAddress, formatAddress } from "@/lib/address";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -252,7 +253,7 @@ export default async function SalesOrderPage({
                 </p>
               ) : null}
               <p className="mt-1 whitespace-pre-line">
-                {order.deliveryAddress ?? ", "}
+                {formatAddress(asAddress(order.deliveryAddress)) || ", "}
               </p>
               {order.deliveryContact ? (
                 <p className="mt-1 text-muted-foreground">{order.deliveryContact}</p>

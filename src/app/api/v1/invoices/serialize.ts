@@ -4,6 +4,7 @@
 // despatched); short-cancelled lines (confirmed quantity 0) never invoice.
 
 import { db } from "@/lib/db";
+import { asAddress, formatAddress } from "@/lib/address";
 import { lineNetPence } from "@/lib/sales";
 
 export const invoiceInclude = {
@@ -54,7 +55,8 @@ export function serializeInvoice(inv: InvoiceWithOrder) {
     delivery: {
       location: order.deliveryLocation?.code ?? null,
       locationName: order.deliveryLocation?.name ?? null,
-      address: order.deliveryAddress,
+      address: asAddress(order.deliveryAddress), // structured {name, company, line1..3, city, province, postcode, country}
+      addressFormatted: formatAddress(asAddress(order.deliveryAddress)) || null,
       contact: order.deliveryContact,
     },
     lines: order.lines

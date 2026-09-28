@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { asAddress } from "@/lib/address";
 import { getCurrentUser } from "@/lib/auth";
 import {
   DOC_PREFIX_DEFAULTS,
@@ -96,7 +97,7 @@ export default async function SettingsPage() {
         <OrgCard
           name={org.name}
           vatNumber={org.vatNumber}
-          address={org.address}
+          address={asAddress(org.address)}
           canEdit={canManage}
         />
         <UsersCard

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { addressFromFormData, validateAddress } from "@/lib/address";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -12,12 +14,13 @@ const noneToNull = (v: FormDataEntryValue | null) => {
 
 export async function saveCustomer(formData: FormData): Promise<ActionResult> {
   const id = (formData.get("id") as string) || null;
+  const address = addressFromFormData(formData);
   const data = {
     name: ((formData.get("name") as string) ?? "").trim(),
     code: ((formData.get("code") as string) ?? "").trim().toUpperCase(),
     email: ((formData.get("email") as string) ?? "").trim() || null,
     phone: ((formData.get("phone") as string) ?? "").trim() || null,
-    deliveryAddress: ((formData.get("deliveryAddress") as string) ?? "").trim() || null,
+    deliveryAddress: address ?? Prisma.DbNull,
     paymentTermsDays: Number(formData.get("paymentTermsDays") ?? 30) || 30,
     notes: ((formData.get("notes") as string) ?? "").trim() || null,
     defaultSalesPersonId: noneToNull(formData.get("defaultSalesPersonId")),
@@ -25,6 +28,13 @@ export async function saveCustomer(formData: FormData): Promise<ActionResult> {
   };
   if (!data.name || !data.code) {
     return { ok: false, error: "Name and code are required" };
+  }
+  if (address) {
+    // The default address is optional, but a partial one can't ship.
+    const missing = validateAddress({ ...address, company: address.company ?? data.name });
+    if (missing.length > 0) {
+      return { ok: false, error: `Delivery address needs: ${missing.join(", ")}` };
+    }
   }
   try {
     if (id) {
@@ -43,14 +53,24 @@ export async function saveCustomer(formData: FormData): Promise<ActionResult> {
 
 export async function saveLocation(formData: FormData): Promise<ActionResult> {
   const customerId = (formData.get("customerId") as string) || "";
+  const name = ((formData.get("name") as string) ?? "").trim();
+  const rawAddress = addressFromFormData(formData);
+  // A named delivery point IS the company when none is typed.
+  const address = rawAddress
+    ? { ...rawAddress, company: rawAddress.company ?? name }
+    : null;
   const data = {
     code: ((formData.get("code") as string) ?? "").trim().toUpperCase().replace(/\s+/g, "-"),
-    name: ((formData.get("name") as string) ?? "").trim(),
-    address: ((formData.get("address") as string) ?? "").trim(),
+    name,
+    address: address as Prisma.InputJsonValue,
     contact: ((formData.get("contact") as string) ?? "").trim() || null,
   };
-  if (!customerId || !data.code || !data.name || !data.address) {
+  if (!customerId || !data.code || !data.name || !address) {
     return { ok: false, error: "Code, name and address are required" };
+  }
+  const missing = validateAddress(address);
+  if (missing.length > 0) {
+    return { ok: false, error: `Address needs: ${missing.join(", ")}` };
   }
   try {
     const count = await db.customerLocation.count({ where: { customerId } });

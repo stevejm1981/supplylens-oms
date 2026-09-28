@@ -357,7 +357,7 @@ model CustomerLocation {
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   code       String // sync key, unique per customer
   name       String // "Avonmouth DC 3"
-  address    String
+  address    Json // structured Address (src/lib/address.ts)
   contact    String?
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
@@ -499,7 +499,7 @@ model Organisation {
   id        String   @id @default(cuid())
   name      String
   vatNumber String?
-  address   String? // multi-line; will print on documents
+  address   Json? // structured Address (src/lib/address.ts); prints on documents
   // Subscription plan code (STARTER/GROWTH/SCALE/PRO/ENTERPRISE). The
   // catalogue (price, included orders, overage, channel cap) lives in
   // src/lib/plans.ts; usage is always DERIVED (orders and API calls counted
@@ -671,7 +671,7 @@ model Customer {
   code                 String       @unique
   email                String?
   phone                String?
-  deliveryAddress      String? // multi-line; pre-fills new sales orders
+  deliveryAddress      Json? // structured Address; pre-fills new sales orders
   paymentTermsDays     Int          @default(30)
   notes                String?
   defaultSalesPersonId String?
@@ -726,7 +726,7 @@ model SalesOrder {
   // Delivery
   deliveryLocationId   String?
   deliveryLocation     CustomerLocation? @relation(fields: [deliveryLocationId], references: [id])
-  deliveryAddress      String? // snapshot of the location at order time, editable per order
+  deliveryAddress      Json? // structured Address snapshot at order time, editable per order
   deliveryContact      String? // name / phone at the delivery point
   shippingService      String? // requested service — each despatch carries its own
   shippingInstructions String? // "book in 48h ahead, rear dock"

@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AddressFields } from "@/components/address-fields";
+import { formatAddress, normalizeAddress, type Address } from "@/lib/address";
 import { inviteUser, removeMember, revokeInvitation, saveOrganisation } from "./actions";
 
 export interface MemberView {
@@ -46,12 +48,12 @@ export function OrgCard({
 }: {
   name: string;
   vatNumber: string | null;
-  address: string | null;
+  address: Address | null;
   canEdit: boolean;
 }) {
   const [orgName, setOrgName] = useState(name);
   const [vat, setVat] = useState(vatNumber ?? "");
-  const [addr, setAddr] = useState(address ?? "");
+  const [addr, setAddr] = useState<Address>(address ?? {});
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -60,7 +62,7 @@ export function OrgCard({
       const result = await saveOrganisation({
         name: orgName,
         vatNumber: vat || null,
-        address: addr || null,
+        address: normalizeAddress(addr),
       });
       if (result.ok) {
         toast.success("Organisation saved");
@@ -91,8 +93,14 @@ export function OrgCard({
           <Input id="org-vat" placeholder="GB123456789" value={vat} disabled={!canEdit} onChange={(e) => setVat(e.target.value)} />
         </div>
         <div className="grid gap-1.5 sm:col-span-2">
-          <Label htmlFor="org-addr">Registered address</Label>
-          <Textarea id="org-addr" rows={3} value={addr} disabled={!canEdit} onChange={(e) => setAddr(e.target.value)} />
+          <Label>Registered address</Label>
+          {canEdit ? (
+            <AddressFields idPrefix="org-addr" value={addr} onChange={setAddr} />
+          ) : (
+            <p className="whitespace-pre-line text-sm text-muted-foreground">
+              {formatAddress(addr) || "Not set"}
+            </p>
+          )}
         </div>
         {canEdit ? (
           <div className="sm:col-span-2">

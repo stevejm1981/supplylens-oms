@@ -29,13 +29,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProductCombobox } from "@/components/product-combobox";
 import { formatPence, parsePoundsToPence } from "@/lib/money";
 import { orderTotalsPence, taxTreatmentLabels } from "@/lib/sales";
+import { AddressFields } from "@/components/address-fields";
+import { normalizeAddress, validateAddress, type Address } from "@/lib/address";
 import { createSalesOrder } from "../actions";
 
 export interface CustomerLocationOption {
   id: string;
   code: string;
   name: string;
-  address: string;
+  address: Address | null;
   contact: string | null;
   isDefault: boolean;
 }
@@ -45,7 +47,7 @@ export interface CustomerOption {
   name: string;
   defaultSalesPersonId: string | null;
   defaultWarehouseId: string | null;
-  deliveryAddress: string | null;
+  deliveryAddress: Address | null;
   locations: CustomerLocationOption[];
   prices: { productId: string; unitPricePence: number }[];
 }
@@ -102,7 +104,7 @@ export function SoForm({
   const [customerPoNumber, setCustomerPoNumber] = useState("");
   const [externalRef, setExternalRef] = useState("");
   const [deliveryLocationId, setDeliveryLocationId] = useState("none");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState<Address>({});
   const [deliveryContact, setDeliveryContact] = useState("");
   const [shippingService, setShippingService] = useState("");
   const [shippingInstructions, setShippingInstructions] = useState("");
@@ -126,7 +128,7 @@ export function SoForm({
     if (!location) return;
     setDeliveryLocationId(location.id);
     // Snapshot onto the order, documents stay stable if the location changes later.
-    setDeliveryAddress(location.address);
+    setDeliveryAddress(location.address ?? {});
     setDeliveryContact(location.contact ?? "");
   }
 
@@ -142,7 +144,7 @@ export function SoForm({
       applyLocation(defaultLocation);
     } else {
       setDeliveryLocationId("none");
-      if (customer?.deliveryAddress) setDeliveryAddress(customer.deliveryAddress);
+      setDeliveryAddress(customer?.deliveryAddress ?? {});
     }
   }
 
@@ -200,6 +202,14 @@ export function SoForm({
   );
 
   function submit() {
+    const shipTo = normalizeAddress(deliveryAddress);
+    if (shipTo) {
+      const missing = validateAddress(shipTo);
+      if (missing.length > 0) {
+        toast.error(`Delivery address needs: ${missing.join(", ")}`);
+        return;
+      }
+    }
     startTransition(async () => {
       const result = await createSalesOrder({
         customerId,
@@ -211,7 +221,7 @@ export function SoForm({
         requiredDate: requiredDate || null,
         customerPoNumber: customerPoNumber || null,
         externalRef: externalRef || null,
-        deliveryAddress: deliveryAddress || null,
+        deliveryAddress: normalizeAddress(deliveryAddress),
         deliveryContact: deliveryContact || null,
         shippingService: shippingService || null,
         shippingInstructions: shippingInstructions || null,
@@ -429,16 +439,16 @@ export function SoForm({
               </div>
             ) : null}
             <div className="grid gap-1.5">
-              <Label htmlFor="deliveryAddress">Delivery address</Label>
-              <Textarea
-                id="deliveryAddress"
-                rows={4}
-                placeholder={"Unit 4, Meadow Business Park\nNorthampton NN4 7XD"}
+              <Label>Delivery address</Label>
+              <AddressFields
+                idPrefix="so-ship"
                 value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
+                onChange={setDeliveryAddress}
               />
               <p className="text-xs text-muted-foreground">
-                Pre-fills from the customer&apos;s default, edit for this order only.
+                Pre-fills from the location or the customer&apos;s default, edit
+                for this order only. Needs a name or company, address line 1,
+                city, and postcode.
               </p>
             </div>
             <div className="grid gap-1.5">

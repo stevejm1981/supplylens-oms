@@ -11,6 +11,8 @@ import { fefoAllocate } from "@/lib/engine/fefo";
 import { getFefoBatches } from "@/lib/batches";
 import { accrualDelta } from "@/lib/engine/carriage";
 import { normalizeTags } from "@/lib/tags";
+import { normalizeAddress, type Address } from "@/lib/address";
+import { Prisma } from "@/generated/prisma/client";
 
 export type ActionResult =
   | { ok: true; id?: string }
@@ -48,7 +50,7 @@ export async function createSalesOrder(input: {
   requiredDate: string | null;
   customerPoNumber: string | null;
   externalRef: string | null;
-  deliveryAddress: string | null;
+  deliveryAddress: Address | null;
   deliveryContact: string | null;
   shippingService: string | null;
   shippingInstructions: string | null;
@@ -73,6 +75,17 @@ export async function createSalesOrder(input: {
   }
   if (lines.some((l) => !Number.isInteger(l.unitsPerUom) || l.unitsPerUom < 1)) {
     return { ok: false, error: "Units per pack must be a whole number ≥ 1" };
+  }
+  // Ship-to snapshot: a label must always have someone to address, so the
+  // customer's name backfills a missing company. Snapshots from locations or
+  // legacy data are accepted as they are; entry forms validate before here.
+  let shipTo = normalizeAddress(input.deliveryAddress);
+  if (shipTo && !shipTo.name && !shipTo.company) {
+    const customer = await db.customer.findUnique({
+      where: { id: input.customerId },
+      select: { name: true },
+    });
+    shipTo = { ...shipTo, company: customer?.name ?? null };
   }
   // Pack/case units are STANDARD-only, a bundle already explodes to
   // components, so a "pack of bundles" would double-convert stock.
@@ -103,7 +116,7 @@ export async function createSalesOrder(input: {
         requiredDate: input.requiredDate ? new Date(input.requiredDate) : null,
         customerPoNumber: input.customerPoNumber?.trim() || null,
         externalRef: input.externalRef?.trim() || null,
-        deliveryAddress: input.deliveryAddress?.trim() || null,
+        deliveryAddress: shipTo ?? Prisma.DbNull,
         deliveryContact: input.deliveryContact?.trim() || null,
         shippingService: input.shippingService?.trim() || null,
         shippingInstructions: input.shippingInstructions?.trim() || null,

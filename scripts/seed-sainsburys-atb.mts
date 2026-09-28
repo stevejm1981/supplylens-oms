@@ -41,7 +41,13 @@ const customer = await db.customer.upsert({
     defaultSalesPersonId: salesPerson.id,
     defaultWarehouseId: warehouse.id,
     paymentTermsDays: 30,
-    deliveryAddress: "33 Holborn\nLondon EC1N 2HT\nUnited Kingdom",
+    deliveryAddress: {
+      company: "Sainsbury's Supermarkets Ltd",
+      line1: "33 Holborn",
+      city: "London",
+      postcode: "EC1N 2HT",
+      country: "United Kingdom",
+    },
   },
   update: {},
 });
@@ -51,7 +57,16 @@ await db.customerLocation.upsert({
     customerId: customer.id,
     code: "5010011090751", // the depot GLN from the EDI ship-to
     name: "Langlands Pk (075)",
-    address: "Hurlawcrook Road\nLanglands Business Park\nE Kilbride G75 0QH\nUnited Kingdom",
+    address: {
+      name: "Goods In",
+      company: "Sainsburys Langlands Park",
+      line1: "Hurlawcrook Road",
+      line2: "Langlands Business Park",
+      city: "E Kilbride",
+      province: "South Lanarkshire",
+      postcode: "G75 0QH",
+      country: "United Kingdom",
+    },
     isDefault: true,
   },
   update: {},

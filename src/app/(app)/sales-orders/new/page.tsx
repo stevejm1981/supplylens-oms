@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { asAddress } from "@/lib/address";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/page-header";
 import { SoForm } from "./so-form";
@@ -56,7 +57,11 @@ export default async function NewSalesOrderPage() {
         hint="Pick the customer first: salesperson, warehouse, delivery details, and prices (their price list when one exists) pre-fill but stay editable. Sell in eaches or in the product's pack sizes."
       />
       <SoForm
-        customers={customers}
+        customers={customers.map((c) => ({
+          ...c,
+          deliveryAddress: asAddress(c.deliveryAddress),
+          locations: c.locations.map((l) => ({ ...l, address: asAddress(l.address) })),
+        }))}
         salespeople={salespeople}
         warehouses={warehouses}
         channels={channels}

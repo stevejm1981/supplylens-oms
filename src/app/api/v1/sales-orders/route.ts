@@ -6,6 +6,13 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import {
+  asAddress,
+  normalizeAddress,
+  parseAddress,
+  validateAddress,
+  type Address,
+} from "@/lib/address";
 import { orderNetPence } from "@/lib/sales";
 import { getSettings } from "@/lib/settings";
 import { resolveUnitPrice } from "@/lib/engine/pricing";
@@ -75,7 +82,10 @@ interface IntakePayload {
   location?: string; // delivery location code, e.g. "AVONMOUTH-DC3"
   // Ad-hoc ship-to for D2C: a consumer's one-off address and contact override
   // any location/customer snapshot (the normal case for marketplace orders).
-  deliveryAddress?: string;
+  // Structured object preferred; a plain multi-line string is parsed
+  // best-effort for backwards compatibility. Minimum after resolution: a
+  // name or company, line1, city, and postcode.
+  deliveryAddress?: Address | string;
   deliveryContact?: string;
   customerPoNumber?: string;
   externalRef?: string; // the channel's own order id, idempotency key
@@ -229,6 +239,27 @@ export async function POST(request: Request) {
     }
   }
 
+  // Ship-to: explicit payload address wins (object preferred, string parsed
+  // best-effort), else the location's, else the customer's default. Whatever
+  // wins must meet the delivery minimum; the customer's name stands in for a
+  // missing company (createSalesOrder snapshots the same fallback).
+  let shipTo: Address | null = null;
+  if (payload.deliveryAddress !== undefined && payload.deliveryAddress !== null) {
+    shipTo =
+      typeof payload.deliveryAddress === "string"
+        ? parseAddress(payload.deliveryAddress)
+        : normalizeAddress(payload.deliveryAddress);
+    if (!shipTo) problems.push("deliveryAddress is empty");
+  } else {
+    shipTo = asAddress(location?.address ?? customer?.deliveryAddress);
+  }
+  if (shipTo && customer) {
+    const missing = validateAddress({ ...shipTo, company: shipTo.company ?? customer.name });
+    if (missing.length > 0) {
+      problems.push(`deliveryAddress needs: ${missing.join(", ")}`);
+    }
+  }
+
   if (problems.length > 0) {
     return NextResponse.json({ ok: false, errors: problems }, { status: 422 });
   }
@@ -267,8 +298,7 @@ export async function POST(request: Request) {
     requiredDate: payload.requiredDate ?? null,
     customerPoNumber: payload.customerPoNumber ?? null,
     externalRef: payload.externalRef ?? null,
-    deliveryAddress:
-      payload.deliveryAddress?.trim() || (location?.address ?? customer!.deliveryAddress ?? null),
+    deliveryAddress: shipTo,
     deliveryContact: payload.deliveryContact?.trim() || (location?.contact ?? null),
     shippingService: payload.shippingService ?? null,
     shippingInstructions: payload.shippingInstructions ?? null,

@@ -7,6 +7,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { asAddress } from "@/lib/address";
 import { verifyPassword, hashPassword } from "@/lib/auth-crypto";
 import {
   createPortalSession,
@@ -153,7 +154,7 @@ export async function portalPlaceOrder(input: {
     requiredDate: null,
     customerPoNumber: input.customerPoNumber?.trim() || null,
     externalRef: null,
-    deliveryAddress: location?.address ?? customer.deliveryAddress ?? null,
+    deliveryAddress: asAddress(location?.address ?? customer.deliveryAddress),
     deliveryContact: location?.contact ?? null,
     shippingService: null,
     shippingInstructions: null,

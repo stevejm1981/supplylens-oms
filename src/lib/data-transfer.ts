@@ -16,7 +16,8 @@ import { parseCsv, toCsv } from "@/lib/csv";
 import { parsePoundsToPence } from "@/lib/money";
 import { recordMovement } from "@/lib/stock-ledger";
 import { JOURNAL_ACCOUNTS, recordStockJournal } from "@/lib/journals";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import { asAddress, validateAddress, type Address } from "@/lib/address";
 
 type Tx = Prisma.TransactionClient;
 
@@ -52,6 +53,43 @@ export interface EntitySpec {
 // ── cell helpers ────────────────────────────────────────────────────────────
 
 const up = (s: string) => s.trim().toUpperCase();
+
+// Structured address ↔ CSV: nine columns per address, in this order.
+const ADDRESS_CSV_KEYS = [
+  "name",
+  "company",
+  "line1",
+  "line2",
+  "line3",
+  "city",
+  "province",
+  "postcode",
+  "country",
+] as const;
+
+function addressCsvCells(address: Address | null): string[] {
+  return ADDRESS_CSV_KEYS.map((k) => address?.[k] ?? "");
+}
+
+/** Read <prefix>Name, <prefix>Line1, … cells; undefined when all blank. */
+function addressFromCells(
+  cells: Record<string, string | undefined>,
+  prefix: string,
+): Address | undefined {
+  const out: Address = {};
+  let any = false;
+  for (const key of ADDRESS_CSV_KEYS) {
+    const col = prefix + key.charAt(0).toUpperCase() + key.slice(1);
+    const value = cells[col]?.trim();
+    if (value) {
+      out[key] = value;
+      if (key !== "country") any = true;
+    }
+  }
+  if (!any) return undefined;
+  if (!out.country) out.country = "United Kingdom";
+  return out;
+}
 const orNull = (s: string) => (s.trim() === "" ? null : s.trim());
 /** blank → undefined (leave unchanged on update) */
 const orSkip = (s: string) => (s.trim() === "" ? undefined : s.trim());
@@ -259,7 +297,15 @@ export const ENTITIES: EntitySpec[] = [
       { name: "email", maps: "Customer.email" },
       { name: "phone", maps: "Customer.phone" },
       { name: "paymentTermsDays", maps: "Customer.paymentTermsDays", notes: "Whole days; default 30" },
-      { name: "deliveryAddress", maps: "Customer.deliveryAddress", notes: "Multi-line OK when quoted" },
+      { name: "deliveryName", maps: "Customer.deliveryAddress.name", notes: "Any delivery column present replaces the whole address" },
+      { name: "deliveryCompany", maps: "Customer.deliveryAddress.company", notes: "Falls back to the customer name" },
+      { name: "deliveryLine1", maps: "Customer.deliveryAddress.line1", notes: "Required when an address is given" },
+      { name: "deliveryLine2", maps: "Customer.deliveryAddress.line2" },
+      { name: "deliveryLine3", maps: "Customer.deliveryAddress.line3" },
+      { name: "deliveryCity", maps: "Customer.deliveryAddress.city", notes: "Required when an address is given" },
+      { name: "deliveryProvince", maps: "Customer.deliveryAddress.province", notes: "County / province" },
+      { name: "deliveryPostcode", maps: "Customer.deliveryAddress.postcode", notes: "Required when an address is given" },
+      { name: "deliveryCountry", maps: "Customer.deliveryAddress.country", notes: "Defaults United Kingdom" },
       { name: "defaultSalesPerson", maps: "Customer.defaultSalesPersonId", notes: "Salesperson NAME, created if missing" },
       { name: "defaultWarehouseCode", maps: "Customer.defaultWarehouseId", notes: "Must exist, import warehouses first" },
       { name: "notes", maps: "Customer.notes" },
@@ -275,7 +321,7 @@ export const ENTITIES: EntitySpec[] = [
         c.email ?? "",
         c.phone ?? "",
         String(c.paymentTermsDays),
-        c.deliveryAddress ?? "",
+        ...addressCsvCells(asAddress(c.deliveryAddress)),
         c.defaultSalesPerson?.name ?? "",
         c.defaultWarehouse?.code ?? "",
         c.notes ?? "",
@@ -319,12 +365,25 @@ export const ENTITIES: EntitySpec[] = [
             continue;
           }
         }
+        // All delivery columns blank = leave the stored address unchanged;
+        // any present = the row's columns replace the whole address.
+        const customerAddress = addressFromCells(cells, "delivery");
+        if (customerAddress) {
+          const missing = validateAddress({
+            ...customerAddress,
+            company: customerAddress.company ?? name,
+          });
+          if (missing.length > 0) {
+            errors.push(`row ${rowNo}: delivery address needs ${missing.join(", ")}`);
+            continue;
+          }
+        }
         const patch = {
           name,
           email: orSkip(cells.email ?? ""),
           phone: orSkip(cells.phone ?? ""),
           paymentTermsDays: terms,
-          deliveryAddress: orSkip(cells.deliveryAddress ?? ""),
+          deliveryAddress: customerAddress === undefined ? undefined : customerAddress ?? Prisma.DbNull,
           defaultSalesPersonId: salesPersonId,
           defaultWarehouseId: warehouseId,
           notes: orSkip(cells.notes ?? ""),
@@ -341,7 +400,7 @@ export const ENTITIES: EntitySpec[] = [
               email: orNull(cells.email ?? ""),
               phone: orNull(cells.phone ?? ""),
               paymentTermsDays: terms ?? 30,
-              deliveryAddress: orNull(cells.deliveryAddress ?? ""),
+              deliveryAddress: customerAddress ?? Prisma.DbNull,
               defaultSalesPersonId: salesPersonId ?? null,
               defaultWarehouseId: warehouseId ?? null,
               notes: orNull(cells.notes ?? ""),
@@ -362,7 +421,15 @@ export const ENTITIES: EntitySpec[] = [
       { name: "customerCode", required: true, maps: "Customer.code", notes: "Must exist, import customers first" },
       { name: "code", required: true, maps: "CustomerLocation.code", notes: "Upsert key within the customer; the API sync key" },
       { name: "name", required: true, maps: "CustomerLocation.name" },
-      { name: "address", required: true, maps: "CustomerLocation.address", notes: "Multi-line OK when quoted" },
+      { name: "addressName", maps: "CustomerLocation.address.name" },
+      { name: "addressCompany", maps: "CustomerLocation.address.company", notes: "Falls back to the location name" },
+      { name: "addressLine1", required: true, maps: "CustomerLocation.address.line1" },
+      { name: "addressLine2", maps: "CustomerLocation.address.line2" },
+      { name: "addressLine3", maps: "CustomerLocation.address.line3" },
+      { name: "addressCity", required: true, maps: "CustomerLocation.address.city" },
+      { name: "addressProvince", maps: "CustomerLocation.address.province", notes: "County / province" },
+      { name: "addressPostcode", required: true, maps: "CustomerLocation.address.postcode" },
+      { name: "addressCountry", maps: "CustomerLocation.address.country", notes: "Defaults United Kingdom" },
       { name: "contact", maps: "CustomerLocation.contact" },
       { name: "isDefault", maps: "CustomerLocation.isDefault", notes: "TRUE/FALSE, at most one per customer" },
     ],
@@ -375,7 +442,7 @@ export const ENTITIES: EntitySpec[] = [
         l.customer.code,
         l.code,
         l.name,
-        l.address,
+        ...addressCsvCells(asAddress(l.address)),
         l.contact ?? "",
         boolCsv(l.isDefault),
       ]);
@@ -389,10 +456,20 @@ export const ENTITIES: EntitySpec[] = [
         const customerCode = up(cells.customerCode ?? "");
         const code = up(cells.code ?? "").replace(/\s+/g, "-");
         const name = cells.name?.trim();
-        const address = cells.address?.trim();
+        const rawAddress = addressFromCells(cells, "address");
+        const address = rawAddress
+          ? { ...rawAddress, company: rawAddress.company ?? name }
+          : null;
         if (!customerCode || !code || !name || !address) {
-          errors.push(`row ${rowNo}: customerCode, code, name and address are required`);
+          errors.push(`row ${rowNo}: customerCode, code, name and the address columns are required`);
           continue;
+        }
+        {
+          const missing = validateAddress(address);
+          if (missing.length > 0) {
+            errors.push(`row ${rowNo}: address needs ${missing.join(", ")}`);
+            continue;
+          }
         }
         const customerId = customers.get(customerCode);
         if (!customerId) {

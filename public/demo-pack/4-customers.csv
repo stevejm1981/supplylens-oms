@@ -1,3 +1,2 @@
-code,name,email,phone,paymentTermsDays,deliveryAddress,defaultSalesPerson,defaultWarehouseCode,notes
-BRIGHT,Brightside Retail,buying@brightside-demo.co.uk,0161 555 0199,30,"Brightside House
-Salford Quays M50 3AZ",Priya Shah,DEMO,Demo pack customer
+code,name,email,phone,paymentTermsDays,deliveryName,deliveryCompany,deliveryLine1,deliveryLine2,deliveryLine3,deliveryCity,deliveryProvince,deliveryPostcode,deliveryCountry,defaultSalesPerson,defaultWarehouseCode,notes
+BRIGHT,Brightside Retail,buying@brightside-demo.co.uk,0161 555 0199,30,,Brightside Retail,Brightside House,Quayside Park,,Salford,Greater Manchester,M50 3AZ,United Kingdom,Priya Shah,DEMO,Demo pack customer

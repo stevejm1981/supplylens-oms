@@ -1,6 +1,7 @@
 import { Users } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { asAddress, formatAddress } from "@/lib/address";
 import { formatPence } from "@/lib/money";
 import { orderNetPence } from "@/lib/sales";
 import { PageHeader } from "@/components/page-header";
@@ -104,7 +105,14 @@ export default async function CustomersPage() {
                           <LocationsDialog
                             customerId={c.id}
                             customerName={c.name}
-                            locations={c.locations}
+                            locations={c.locations.map((l) => ({
+                              id: l.id,
+                              code: l.code,
+                              name: l.name,
+                              address: formatAddress(asAddress(l.address)),
+                              contact: l.contact,
+                              isDefault: l.isDefault,
+                            }))}
                           />
                           <PriceListDialog
                             customerId={c.id}
@@ -130,7 +138,7 @@ export default async function CustomersPage() {
                             }))}
                           />
                           <CustomerFormDialog
-                            customer={c}
+                            customer={{ ...c, deliveryAddress: asAddress(c.deliveryAddress) }}
                             salespeople={salespeople}
                             warehouses={warehouses}
                           />

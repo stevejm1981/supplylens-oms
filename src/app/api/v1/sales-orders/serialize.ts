@@ -2,6 +2,7 @@
 // by PATCH so a client never needs a follow-up read.
 
 import { db } from "@/lib/db";
+import { asAddress, formatAddress } from "@/lib/address";
 import { fillRates, orderTotalsPence } from "@/lib/sales";
 import { carriageStatus, effectiveCarriagePence } from "@/lib/engine/carriage";
 
@@ -54,7 +55,8 @@ export async function serializeOrder(reference: string) {
     requiredDate: order.requiredDate,
     delivery: {
       location: order.deliveryLocation?.code ?? null,
-      address: order.deliveryAddress,
+      address: asAddress(order.deliveryAddress), // structured {name, company, line1..3, city, province, postcode, country}
+      addressFormatted: formatAddress(asAddress(order.deliveryAddress)) || null,
       contact: order.deliveryContact,
       shippingService: order.shippingService,
       shippingInstructions: order.shippingInstructions,

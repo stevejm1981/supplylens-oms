@@ -42,7 +42,15 @@ const customer = await db.customer.upsert({
     defaultSalesPersonId: salesPerson.id,
     defaultWarehouseId: warehouse.id,
     paymentTermsDays: 60, // "60 DAYS DISCOUNT 0%" per the EDI order note
-    deliveryAddress: "Hilmore House\nGain Lane\nBradford BD3 7DL\nUnited Kingdom",
+    deliveryAddress: {
+      company: "Wm Morrison Supermarkets",
+      line1: "Hilmore House",
+      line2: "Gain Lane",
+      city: "Bradford",
+      province: "West Yorkshire",
+      postcode: "BD3 7DL",
+      country: "United Kingdom",
+    },
   },
   update: {},
 });
@@ -52,7 +60,16 @@ await db.customerLocation.upsert({
     customerId: customer.id,
     code: "5010251007630", // the depot GLN, exactly what the EDI ship-to carries
     name: "SITTINGBOURNE FRESH",
-    address: "G-PARK\nFLEET END\nSITTINGBOURNE ME10 2FD\nUnited Kingdom",
+    address: {
+      name: "Goods In",
+      company: "Morrisons RDC Sittingbourne",
+      line1: "G-PARK",
+      line2: "FLEET END",
+      city: "SITTINGBOURNE",
+      province: "Kent",
+      postcode: "ME10 2FD",
+      country: "United Kingdom",
+    },
     isDefault: true,
   },
   update: {},
