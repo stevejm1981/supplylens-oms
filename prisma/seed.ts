@@ -51,6 +51,7 @@ async function wipe() {
   await db.supplierReturn.deleteMany();
   await db.customerLocation.deleteMany();
   await db.carrierAllocation.deleteMany();
+  await db.carrierRateCard.deleteMany();
   await db.carrierInvoiceLine.deleteMany();
   await db.carrierInvoice.deleteMany();
   await db.despatchLine.deleteMany();
@@ -1185,6 +1186,32 @@ async function main() {
   }
 
   // ── Cost to serve: expected carriage on the pallet despatches, and one
+  // Rate card: the fallback expected-carriage source when the 3PL cannot
+  // supply the rate; zones cover the seeded customers' delivery postcodes.
+  await db.carrierRateCard.create({
+    data: {
+      carrier: "Palletways",
+      name: "Pallet rates 2026",
+      basis: "PALLET",
+      zones: {
+        create: [
+          {
+            name: "South West",
+            postcodeAreas: ["BS", "TW", "RH"],
+            perExtraUnitPence: 3500,
+            breaks: { create: [{ upTo: 1, pricePence: 4500 }, { upTo: 3, pricePence: 9900 }, { upTo: 6, pricePence: 16500 }] },
+          },
+          {
+            name: "North",
+            postcodeAreas: ["LS", "M"],
+            perExtraUnitPence: 3000,
+            breaks: { create: [{ upTo: 1, pricePence: 3900 }, { upTo: 3, pricePence: 8700 }, { upTo: 6, pricePence: 14900 }] },
+          },
+        ],
+      },
+    },
+  });
+
   // carrier invoice matched with variances. The Palletways consignments
   // (RANGE) accrued at despatch; PW-INV-30977 covers both, one over and one
   // under the accrual. The DHL despatch (RDYAS) stays accrued-not-invoiced,

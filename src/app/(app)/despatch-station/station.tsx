@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { RateSuggestion } from "@/components/rate-suggestion";
+import { cardsForService, type RateCard } from "@/lib/engine/carrier-rates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -55,6 +57,7 @@ export interface QueueOrder {
   requiredLabel: string | null; // pre-formatted server-side (hydration-safe)
   tags: string[]; // channel text tags ("gift-wrap", "priority")
   shippingService: string | null;
+  postcode: string | null;
   deliveryAddress: string | null;
   deliveryContact: string | null;
   shippingInstructions: string | null;
@@ -65,7 +68,7 @@ export interface QueueOrder {
 
 type Stage = "queue" | "picking" | "pack" | "label";
 
-export function Station({ queue }: { queue: QueueOrder[] }) {
+export function Station({ queue, rateCards = [] }: { queue: QueueOrder[]; rateCards?: RateCard[] }) {
   const [stage, setStage] = useState<Stage>("queue");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [order, setOrder] = useState<QueueOrder | null>(null);
@@ -499,6 +502,11 @@ export function Station({ queue }: { queue: QueueOrder[] }) {
               />
             </div>
           </div>
+          <RateSuggestion
+            cards={cardsForService(rateCards, service)}
+            postcode={order.postcode}
+            onUse={(pence) => setCarriage((pence / 100).toFixed(2))}
+          />
           <p className="text-xs text-muted-foreground">
             Weight pre-filled from the picked items’ catalogue weights, override with the scale reading.
             Carriage cost is what the carrier charges YOU (cost to serve), it accrues against this order.

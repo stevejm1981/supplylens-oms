@@ -7,7 +7,8 @@ Every transaction that moves stock or money produces a financial artifact, writt
 | OMS transaction | Financial artifact | Journal (Dr / Cr) | In Xero |
 |---|---|---|---|
 | PO placed | none yet | no value has moved | optionally a Xero Purchase Order (informational, non-posting) |
-| PO received | PO_RECEIPT journal | Stock on Hand / Goods Received Not Invoiced, at PO cost plus any freight already allocated | the supplier's invoice is entered as a **Bill** coded to GRNI, clearing it |
+| PO received | PO_RECEIPT journal + the GRN's bill payload | Stock on Hand / Goods Received Not Invoiced, at PO cost plus any freight already allocated | the journal posts as-is, and the integration raises a **DRAFT Bill** coded to GRNI from `GET /goods-receipts` (goods value and any pre-receipt landed share split out): the visible list of deliveries awaiting supplier invoices |
+| Supplier invoice approved (three-way match) | GRN billed ack | no OMS journal: the ledger app posts the bill Dr GRNI / Cr Creditors, keeping the supplier off the ledger until the price matched | approve and post the draft Bill; `POST /goods-receipts/{ref}/billed` (or the Mark billed button) records it against the delivery |
 | Cost invoice allocated (freight, duty) | LANDED_COST journal | Stock on Hand / Landed Costs Clearing (received portion; deletion writes the exact reversal) | the carrier's or HMRC's Bill coded to Landed Costs Clearing |
 | Sales order despatched | DESPATCH_COGS journal | Cost of Goods Sold / Stock on Hand, at average landed | posts as a manual journal |
 | Despatch with expected carriage | CARRIAGE_ACCRUAL journal | Cost to Serve / Carriage Accruals at the expected charge (revisions journal the delta) | manual journal; the accrual sits as a liability until the carrier bills |

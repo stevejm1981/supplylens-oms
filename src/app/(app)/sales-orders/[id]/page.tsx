@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { asAddress, formatAddress } from "@/lib/address";
+import { getActiveRateCards } from "@/lib/carrier-rates";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { PrintLink } from "@/components/print-link";
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { SoActions } from "./so-actions";
 import { CreditDialog } from "./credit-dialog";
-import { CreateDespatchDialog, DespatchRowActions } from "./despatch-components";
+import { CarriageDialog, CreateDespatchDialog, DespatchRowActions } from "./despatch-components";
 import { BookReturnDialog } from "./return-dialog";
 import { AmendDialog } from "./amend-dialog";
 import { CoverShortfallButton } from "./cover-shortfall";
@@ -48,7 +49,7 @@ export default async function SalesOrderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [order, warehouses] = await Promise.all([
+  const [order, warehouses, rateCards] = await Promise.all([
     db.salesOrder.findUnique({
       where: { id },
       include: {
@@ -71,6 +72,7 @@ export default async function SalesOrderPage({
       orderBy: [{ isDefault: "desc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
+    getActiveRateCards(),
   ]);
   if (!order) notFound();
 
@@ -533,7 +535,16 @@ export default async function SalesOrderPage({
                       <TableCell className="pr-6">
                         <div className="flex justify-end gap-1">
                           <PrintLink href={`/print/despatch-note/${d.id}`} />
+                          {d.status === "DESPATCHED" &&
+                          d.carrierAllocations.reduce((s, a) => s + a.amountPence, 0) === 0 ? (
+                            <CarriageDialog
+                              despatchId={d.id}
+                              expectedCarriagePence={d.expectedCarriagePence}
+                            />
+                          ) : null}
                           <DespatchRowActions
+                            rateCards={rateCards}
+                            postcode={asAddress(order.deliveryAddress)?.postcode ?? null}
                             despatch={{
                               id: d.id,
                               status: d.status,

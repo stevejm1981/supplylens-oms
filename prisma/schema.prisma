@@ -283,6 +283,10 @@ model GoodsReceipt {
   receivedAt    DateTime      @default(now())
   notes         String?
   source        String        @default("UI") // "UI" | "API"
+  // Three-way match: set when the supplier's invoice for THIS delivery is
+  // approved and posted in the ledger app (or marked billed by hand).
+  billedAt        DateTime?
+  billExternalRef String? // the ledger app's bill id
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @default(now()) @updatedAt
 
@@ -818,6 +822,42 @@ model Despatch {
 // its accrued expected carriage and the actual charge; in the ledger app the
 // carrier's bill itself is coded to Carriage Accruals, exactly as supplier
 // bills clear GRNI.
+// Carrier rate cards: the fallback rate source when a 3PL cannot supply the
+// freight cost per shipment. Priced the way carriers price: zone (delivery
+// postcode area) x consignment size band. The matched rate only ever
+// SUGGESTS the expected carriage; the accrual journal is unchanged.
+model CarrierRateCard {
+  id        String   @id @default(cuid())
+  carrier   String // matches the despatch/order shipping service or carrier name
+  name      String
+  basis     String   @default("PALLET") // "PALLET" | "CARTON" | "WEIGHT" (kg)
+  active    Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  zones CarrierRateZone[]
+}
+
+model CarrierRateZone {
+  id               String          @id @default(cuid())
+  cardId           String
+  card             CarrierRateCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  name             String // "Zone 1"
+  postcodeAreas    String[] // outward-code letters: "BS", "CF", "M"
+  perExtraUnitPence Int? // beyond the last break; null = last break is a hard cap
+
+  breaks CarrierRateBreak[]
+}
+
+model CarrierRateBreak {
+  id      String          @id @default(cuid())
+  zoneId  String
+  zone    CarrierRateZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  upTo    Int // applies to consignments of <= this many units (pallets/cartons/kg)
+  pricePence Int
+}
+
 model CarrierInvoice {
   id          String   @id @default(cuid())
   reference   String   @unique // the carrier's invoice number

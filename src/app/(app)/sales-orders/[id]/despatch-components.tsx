@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ClipboardCheck, PackagePlus, Send, Trash2 } from "lucide-react";
+import { ClipboardCheck, PackagePlus, Pencil, Send, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RateSuggestion } from "@/components/rate-suggestion";
+import { cardsForService, type RateCard } from "@/lib/engine/carrier-rates";
 import {
   createDespatch,
   deleteDespatch,
   despatchDespatch,
   markDespatchPicked,
+  setExpectedCarriage,
 } from "../actions";
 
 type Result = { ok: boolean } & { error?: string };
@@ -154,7 +157,15 @@ export interface DespatchView {
   lines: { id: string; sku: string; quantity: number; pickedQty: number }[];
 }
 
-export function DespatchRowActions({ despatch }: { despatch: DespatchView }) {
+export function DespatchRowActions({
+  despatch,
+  rateCards = [],
+  postcode = null,
+}: {
+  despatch: DespatchView;
+  rateCards?: RateCard[];
+  postcode?: string | null;
+}) {
   const [pickOpen, setPickOpen] = useState(false);
   const [shipOpen, setShipOpen] = useState(false);
   const [picked, setPicked] = useState<Record<string, string>>({});
@@ -268,6 +279,11 @@ export function DespatchRowActions({ despatch }: { despatch: DespatchView }) {
                   value={carriage}
                   onChange={(e) => setCarriage(e.target.value)}
                 />
+                <RateSuggestion
+                  cards={cardsForService(rateCards, service)}
+                  postcode={postcode}
+                  onUse={(pence) => setCarriage((pence / 100).toFixed(2))}
+                />
                 <p className="text-xs text-muted-foreground">
                   Optional. Accrues the expected cost to serve; the carrier&apos;s
                   invoice later matches against it.
@@ -309,5 +325,72 @@ export function DespatchRowActions({ despatch }: { despatch: DespatchView }) {
         <Trash2 className="text-muted-foreground" />
       </Button>
     </div>
+  );
+}
+
+// ── Expected carriage on a confirmed despatch ───────────────────────────────
+// Sets or corrects the accrual after the fact (the rate arrived late, or a
+// hand correction). The accrual DELTA journals automatically; blocked once
+// a carrier invoice has matched, corrections then belong on the invoice.
+export function CarriageDialog({
+  despatchId,
+  expectedCarriagePence,
+}: {
+  despatchId: string;
+  expectedCarriagePence: number | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(
+    expectedCarriagePence != null ? (expectedCarriagePence / 100).toFixed(2) : "",
+  );
+  const { pending, run } = useRun();
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Pencil /> Carriage
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle>Expected carriage cost</DialogTitle>
+          <DialogDescription>
+            What the carrier is expected to charge for this consignment. The
+            accrual adjusts by the difference; clear it to release the accrual.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-1.5">
+          <Label htmlFor="carriage-pounds">Carriage cost (£)</Label>
+          <Input
+            id="carriage-pounds"
+            inputMode="decimal"
+            placeholder="45.00"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            disabled={pending}
+            onClick={() => {
+              const pence =
+                value.trim() === "" ? null : Math.round(Number(value) * 100);
+              if (pence !== null && (!Number.isFinite(pence) || pence < 0)) {
+                toast.error("Enter an amount like 45.00, or clear the field");
+                return;
+              }
+              run(
+                () => setExpectedCarriage(despatchId, pence),
+                "Expected carriage updated",
+                () => setOpen(false),
+              );
+            }}
+          >
+            {pending ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

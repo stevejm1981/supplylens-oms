@@ -283,3 +283,25 @@ export async function deletePurchaseOrder(id: string): Promise<ActionResult> {
   revalidatePath("/purchase-orders");
   return { ok: true };
 }
+
+/**
+ * Mark a delivery's supplier invoice as billed by hand (the manual path
+ * for vendors outside the ledger sync). The API ack does the same thing
+ * with the ledger app's bill id.
+ */
+export async function markReceiptBilled(
+  receiptId: string,
+  billed: boolean,
+): Promise<ActionResult> {
+  const receipt = await db.goodsReceipt.findUnique({ where: { id: receiptId } });
+  if (!receipt) return { ok: false, error: "Delivery not found" };
+  await db.goodsReceipt.update({
+    where: { id: receiptId },
+    data: billed
+      ? { billedAt: new Date() }
+      : { billedAt: null, billExternalRef: null },
+  });
+  revalidatePath("/purchase-orders");
+  revalidatePath(`/purchase-orders/${receipt.poId}`);
+  return { ok: true };
+}

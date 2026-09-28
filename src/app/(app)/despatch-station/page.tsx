@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { asAddress, formatAddress } from "@/lib/address";
+import { getActiveRateCards } from "@/lib/carrier-rates";
 import { getFefoBatches, makeFefoSuggester } from "@/lib/batches";
 import { PageHeader } from "@/components/page-header";
 import { Station } from "./station";
@@ -76,6 +77,7 @@ export default async function DespatchStationPage() {
         tags: o.tags,
         shippingService: o.shippingService,
         deliveryAddress: formatAddress(asAddress(o.deliveryAddress)) || null,
+        postcode: asAddress(o.deliveryAddress)?.postcode ?? null,
         deliveryContact: o.deliveryContact,
         shippingInstructions: o.shippingInstructions,
         giftMessage: o.giftMessage,
@@ -121,7 +123,7 @@ export default async function DespatchStationPage() {
         title="Despatch Station"
         hint="The packing bench. Take the next order from the queue (or tick several and Print job list for one consolidated walk), print its pick list, scan each item to verify (wrong items are refused), pack with weights and the expected carriage cost, generate the label, and Confirm despatch. Stock, COGS, order status, and the accounting journal all update in that final click. The DPD label shown is a stand-in; connecting your own DPD account prints the real one."
       />
-      <Station queue={queue} />
+      <Station queue={queue} rateCards={await getActiveRateCards()} />
     </div>
   );
 }

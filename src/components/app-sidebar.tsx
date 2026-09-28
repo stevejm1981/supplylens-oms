@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/app/(auth)/actions";
 import {
+  Milestone,
   ArrowLeftRight,
   BarChart3,
   Boxes,
@@ -85,6 +86,7 @@ const sections: { label: string; items: { title: string; href: string; icon: Rea
       { title: "Purchase Orders", href: "/purchase-orders", icon: Container },
       { title: "Cost Invoices", href: "/cost-invoices", icon: Receipt },
       { title: "Carrier Invoices", href: "/carrier-invoices", icon: TruckElectric },
+      { title: "Carrier Rates", href: "/carrier-rates", icon: Milestone },
       { title: "Replenishment", href: "/replenishment", icon: TrendingUp },
     ],
   },

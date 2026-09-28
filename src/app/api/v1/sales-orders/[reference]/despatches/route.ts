@@ -10,6 +10,9 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { asAddress } from "@/lib/address";
+import { getActiveRateCards } from "@/lib/carrier-rates";
+import { cardsForService, rateFor } from "@/lib/engine/carrier-rates";
 import {
   createDespatch,
   despatchDespatch,
@@ -30,8 +33,11 @@ interface ConfirmationPayload {
   shippingService?: string;
   trackingNumber?: string;
   // What the carrier will charge for this shipment (pence), accrued as cost
-  // to serve; the carrier's invoice later matches against it.
+  // to serve; the carrier's invoice later matches against it. When the 3PL
+  // cannot supply the cost, send carriageUnits (pallets/cartons/kg per the
+  // matching rate card's basis) instead and the card prices it.
   expectedCarriagePence?: number;
+  carriageUnits?: number;
   lines: ConfirmationLine[];
 }
 
@@ -149,10 +155,28 @@ export async function POST(
     await rollback();
     return NextResponse.json({ ok: false, error: picked.error }, { status: 422 });
   }
+  // Expected carriage: an explicit cost from the 3PL always wins; without
+  // one, carriageUnits prices the consignment off the matching rate card
+  // (zone by the order's delivery postcode). Ambiguous = no accrual, the
+  // office corrects it later via PATCH /despatches/{reference}.
+  let expectedCarriagePence = payload.expectedCarriagePence ?? null;
+  let carriageMemo: string | null = null;
+  if (expectedCarriagePence === null && payload.carriageUnits && payload.carriageUnits > 0) {
+    const service = payload.shippingService ?? order.shippingService;
+    const cards = cardsForService(await getActiveRateCards(), service);
+    const postcode = asAddress(order.deliveryAddress)?.postcode ?? null;
+    const rated = cards
+      .map((card) => ({ card, rate: rateFor(card, postcode, payload.carriageUnits!) }))
+      .filter((r) => r.rate);
+    if (rated.length === 1) {
+      expectedCarriagePence = rated[0].rate!.pricePence;
+      carriageMemo = `rate card ${rated[0].card.name}`;
+    }
+  }
   const shipped = await despatchDespatch(despatch.id, {
     shippingService: payload.shippingService ?? null,
     trackingNumber: payload.trackingNumber ?? null,
-    expectedCarriagePence: payload.expectedCarriagePence ?? null,
+    expectedCarriagePence,
   });
   if (!shipped.ok) {
     // e.g. stock shortage, undo the confirmation attempt entirely.
@@ -165,6 +189,8 @@ export async function POST(
       ok: true,
       duplicate: false,
       despatch: despatch.reference,
+      expectedCarriagePence,
+      carriageSource: carriageMemo ?? (expectedCarriagePence != null ? "payload" : null),
       order: await serializeOrder(order.reference),
     },
     { status: 201 },

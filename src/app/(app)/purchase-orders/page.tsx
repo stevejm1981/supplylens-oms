@@ -6,6 +6,7 @@ import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,6 +25,7 @@ export default async function PurchaseOrdersPage() {
       supplier: { select: { name: true } },
       lines: true,
       costInvoices: { include: { costInvoice: { select: { amountPence: true } } } },
+      receipts: { select: { billedAt: true } },
     },
   });
 
@@ -88,7 +90,17 @@ export default async function PurchaseOrdersPage() {
                         {po.containerRef ?? ", "}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={po.status} />
+                        <div className="flex items-center gap-1.5">
+                          <StatusBadge status={po.status} />
+                          {(() => {
+                            const awaiting = po.receipts.filter((r) => !r.billedAt).length;
+                            return awaiting > 0 ? (
+                              <Badge className="border-transparent bg-amber-100 text-amber-800">
+                                {awaiting} awaiting invoice
+                              </Badge>
+                            ) : null;
+                          })()}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {po.lines.length}

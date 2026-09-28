@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { carriageStatus } from "@/lib/engine/carriage";
 import { parseUpdatedSince, requireApiKey } from "../auth";
 
 export async function GET(request: Request) {
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
     include: {
       salesOrder: { select: { reference: true } },
       lines: { include: { orderLine: { include: { product: { select: { sku: true } } } } } },
+      carrierAllocations: { select: { amountPence: true } },
     },
   });
   return NextResponse.json({
@@ -23,6 +25,11 @@ export async function GET(request: Request) {
       shippingService: d.shippingService,
       trackingNumber: d.trackingNumber,
       despatchedAt: d.despatchedAt,
+      expectedCarriagePence: d.expectedCarriagePence,
+      carriageStatus: carriageStatus(
+        d.expectedCarriagePence,
+        d.carrierAllocations.reduce((sum, a) => sum + a.amountPence, 0),
+      ),
       lines: d.lines.map((l) => ({
         sku: l.orderLine.product.sku,
         quantity: l.quantity,

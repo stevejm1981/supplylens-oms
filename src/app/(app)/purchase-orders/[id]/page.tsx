@@ -7,6 +7,7 @@ import { landedUnitCostPence } from "@/lib/engine/landed-cost";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { PrintLink } from "@/components/print-link";
+import { BilledToggle } from "./billed-toggle";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -225,6 +226,11 @@ export default async function PurchaseOrderPage({
                   <li key={r.id} className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-semibold">{r.reference}</span>
                     <PrintLink href={`/print/goods-receipt/${r.id}`} />
+                    <BilledToggle
+                      receiptId={r.id}
+                      billedLabel={r.billedAt ? `Billed ${dateFmt.format(r.billedAt)}` : null}
+                      externalRef={r.billExternalRef}
+                    />
                     <span className="text-xs text-muted-foreground">
                       {dateFmt.format(r.receivedAt)} · {r.warehouse.name}
                       {r.source === "API" ? " · via API" : ""}

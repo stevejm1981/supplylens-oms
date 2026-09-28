@@ -224,6 +224,13 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 3. One consignment carrying several orders? Choose the split: by order value, by weight, equally, or manual amounts. Click `Create and match`.
 4. Every order now shows invoiced carriage instead of the estimate, the variance is visible per consignment, and true margin updates. In your ledger app, code the carrier's bill to **Carriage Accruals**.
 
+### How do I keep supplier invoices off the ledger until they're approved (GRNI)?
+
+1. Receiving a delivery already books Dr Stock / Cr Goods Received Not Invoiced; nothing touches creditors.
+2. Your ledger integration reads `GET /goods-receipts?status=UNBILLED` and raises each delivery as a **DRAFT bill coded to GRNI**: that draft list IS your unapproved and missing invoices, per supplier.
+3. When the supplier's invoice arrives and the price matches, approve the bill in the ledger app (it posts Dr GRNI / Cr Creditors) and the integration acks `POST /goods-receipts/{ref}/billed`: the delivery flips to Billed on the purchase order.
+4. Suppliers outside the sync? The `Mark billed` button on the PO's Deliveries card does the same by hand. The PO register shows an amber count of deliveries still awaiting an invoice.
+
 ### How does all of this reach my accounts?
 
 1. Every stock event with a value consequence writes a balanced journal into an outbox as it happens: receipts, despatch COGS, adjustments, returns, production, landed costs, carriage. Nothing to prepare at month end.

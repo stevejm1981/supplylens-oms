@@ -373,7 +373,43 @@ const spec = {
       get: {
         summary: "Despatch documents (fulfilments)",
         tags: ["Sales"],
-        responses: { "200": { description: "Per-line ordered → picked → despatched with tracking" } },
+        responses: {
+          "200": {
+            description:
+              "Per-line ordered → picked → despatched with tracking, plus expectedCarriagePence and the derived carriageStatus (NONE / ACCRUED / INVOICED)",
+          },
+        },
+      },
+    },
+    "/despatches/{reference}": {
+      patch: {
+        summary: "Set or correct a despatch's expected carriage",
+        tags: ["Fulfilment"],
+        description:
+          "For rates that arrive after the shipment confirmed (a 3PL portal, a rate lookup): send expectedCarriagePence (integer pence; null releases the accrual). Only the accrual DELTA journals (CARRIAGE_ACCRUAL), so corrections are safe to repeat. Refused once a carrier invoice has matched the despatch, corrections then belong on the invoice.",
+        parameters: [
+          { name: "reference", in: "path", required: true, schema: { type: "string" }, example: "DSP-0012" },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["expectedCarriagePence"],
+                properties: {
+                  expectedCarriagePence: { type: ["integer", "null"], description: "Pence; null clears the accrual" },
+                },
+              },
+              example: { expectedCarriagePence: 4250 },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "The despatch's updated carriage" },
+          "404": { description: "Unknown despatch" },
+          "422": { description: "Invalid value, not yet despatched, or already carrier-invoiced" },
+        },
       },
     },
     "/invoices": {
@@ -426,7 +462,7 @@ const spec = {
         summary: "Despatch confirmation (the WMS/3PL shipped goods)",
         tags: ["Fulfilment"],
         description:
-          "One call runs the whole despatch lifecycle: creates the despatch document, deducts stock (bundles exploded, packs converted), consumes customer reservations, snapshots COGS at average landed cost, writes the movement ledger and the DESPATCH_COGS stock journal, and updates fulfilment state. Lines match order lines by sku/barcode (+optional uom); quantities are in the ordered unit and may be partial. Optional expectedCarriagePence accrues the carrier's expected charge as cost to serve (CARRIAGE_ACCRUAL journal) for later matching by a carrier invoice. Idempotent per (order, externalRef), DESADV re-sends return the existing despatch.",
+          "One call runs the whole despatch lifecycle: creates the despatch document, deducts stock (bundles exploded, packs converted), consumes customer reservations, snapshots COGS at average landed cost, writes the movement ledger and the DESPATCH_COGS stock journal, and updates fulfilment state. Lines match order lines by sku/barcode (+optional uom); quantities are in the ordered unit and may be partial. Optional expectedCarriagePence accrues the carrier's expected charge as cost to serve (CARRIAGE_ACCRUAL journal) for later matching by a carrier invoice; when the 3PL cannot supply the cost, send carriageUnits (pallets/cartons/kg per the matching rate card's basis) and the card prices it off the delivery postcode, the response reports the applied rate as carriageSource. Idempotent per (order, externalRef), DESADV re-sends return the existing despatch.",
         parameters: [
           { name: "reference", in: "path", required: true, schema: { type: "string" }, example: "SO-0017" },
         ],
@@ -540,12 +576,52 @@ const spec = {
         responses: { "200": { description: "Marked paid (duplicate: true if already paid)" } },
       },
     },
+    "/goods-receipts": {
+      get: {
+        summary: "Goods receipts (GRNs), the draft supplier-bill source",
+        tags: ["Accounting"],
+        description:
+          "One item per delivery with everything the ledger integration needs for the GRNI three-way match: supplier, PO reference, received lines with PO unit costs, and totals split into goodsValuePence (qty × PO cost) and landedSharePence (this delivery's share of PRE-receipt landed costs; both were credited to GRNI by the receipt journal, and the split reconciles to that journal's total to the penny). Raise the supplier's DRAFT bill coded to Goods Received Not Invoiced from the goods value; a pre-receipt freight vendor's bill clears the landed share. ?status=UNBILLED is the running list of deliveries still awaiting an approved supplier invoice.",
+        parameters: [
+          { name: "status", in: "query", schema: { type: "string", enum: ["UNBILLED", "BILLED"] } },
+          { name: "supplier", in: "query", schema: { type: "string" }, description: "Supplier code" },
+          { $ref: "#/components/parameters/updatedSince" },
+        ],
+        responses: { "200": { description: "GRNs with values, journal reference, and billed state" } },
+      },
+    },
+    "/goods-receipts/{reference}": {
+      get: {
+        summary: "One GRN readback",
+        tags: ["Accounting"],
+        parameters: [
+          { name: "reference", in: "path", required: true, schema: { type: "string" }, example: "GRN-0003" },
+        ],
+        responses: { "200": { description: "The delivery's bill payload and billed state" }, "404": { description: "Unknown GRN" } },
+      },
+    },
+    "/goods-receipts/{reference}/billed": {
+      post: {
+        summary: "Three-way-match ack: the supplier's invoice posted",
+        tags: ["Accounting"],
+        description:
+          "Call when the supplier's invoice for this delivery is approved and posted in the ledger app (Dr GRNI / Cr Creditors there). Idempotent; optional externalRef stores the ledger app's bill id. The Mark billed button in the app flips the same state by hand.",
+        parameters: [
+          { name: "reference", in: "path", required: true, schema: { type: "string" }, example: "GRN-0003" },
+        ],
+        requestBody: {
+          required: false,
+          content: { "application/json": { schema: { type: "object", properties: { externalRef: { type: "string" } } }, example: { externalRef: "XERO-BILL-00087" } } },
+        },
+        responses: { "200": { description: "Billed (duplicate: true when already acked)" }, "404": { description: "Unknown GRN" } },
+      },
+    },
     "/stock-journals": {
       get: {
         summary: "Stock journals, the accounting outbox",
         tags: ["Accounting"],
         description:
-          "Balanced Dr/Cr journals written in the same transaction as every stock event with a value consequence: DESPATCH_COGS (Dr Cost of Goods Sold / Cr Stock on Hand at average landed), PO_RECEIPT (Dr Stock / Cr Goods Received Not Invoiced), RETURN_RESTOCK + CREDIT_RESTOCK (Dr Stock / Cr COGS), ADJUSTMENT (Stock ↔ Stock Adjustments). The Xero loop: GET ?status=PENDING → create the journal in the accounting system → POST /stock-journals/{reference}/posted to acknowledge.",
+          "Balanced Dr/Cr journals written in the same transaction as every stock event with a value consequence: DESPATCH_COGS (Dr Cost of Goods Sold / Cr Stock on Hand at average landed), PO_RECEIPT (Dr Stock / Cr Goods Received Not Invoiced), RETURN_RESTOCK + CREDIT_RESTOCK (Dr Stock / Cr COGS), ADJUSTMENT (Stock ↔ Stock Adjustments). The Xero loop: GET ?status=PENDING → create the journal in the accounting system → POST /stock-journals/{reference}/posted to acknowledge. For purchases this pairs with /goods-receipts for the GRNI three-way match: the PO_RECEIPT journal holds the value in GRNI, the GRN raises the supplier's DRAFT bill coded to GRNI, and the billed ack records the approval that posts it to creditors.",
         parameters: [
           { name: "status", in: "query", schema: { type: "string", enum: ["PENDING", "POSTED"] } },
           { $ref: "#/components/parameters/updatedSince" },
