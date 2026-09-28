@@ -16,6 +16,16 @@ export const metadata: Metadata = {
   title: "Ordo",
   description:
     "Ordo, the order management system by Supply Lens. Every order, in order: POs, landed costs, bundles, batches, and channel stock rules.",
+  // Icons live in public/ and are referenced at STABLE URLs on purpose.
+  // As src/app file conventions they get a per-build cache-busting query
+  // string, which makes every browser drop its cached favicon on every
+  // deployment (the tab icon "disappears" until it refetches).
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.png", type: "image/png", sizes: "384x384" },
+    ],
+  },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
