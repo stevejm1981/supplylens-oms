@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { PrintLink } from "@/components/print-link";
 import { getAvgLandedCosts } from "@/lib/queries";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
@@ -142,6 +143,7 @@ export default async function ReturnsPage() {
                       </TableCell>
                       <TableCell className="pr-6">
                         <div className="flex items-center justify-end gap-1.5">
+                          <PrintLink href={`/print/customer-return/${rma.id}`} />
                           {rma.status === "AWAITING" ? (
                             <>
                               <ReceiveRmaDialog
@@ -223,7 +225,8 @@ export default async function ReturnsPage() {
                         )}
                       </TableCell>
                       <TableCell className="pr-6">
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-1">
+                          <PrintLink href={`/print/supplier-return/${rtv.id}`} />
                           <RtvRowActions rtvId={rtv.id} status={rtv.status} />
                         </div>
                       </TableCell>

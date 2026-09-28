@@ -244,6 +244,12 @@ Think of a thing you need to do, find the question, follow the steps. Every butt
 
 ## Admin and integration
 
+### How do I print a document?
+
+1. Every document has a `Print` button (the printer icon): the sales order and purchase order on their detail pages, invoices and credit notes on their registers, despatch notes on the Despatches register and the order's shipments card, GRNs on the purchase order's Deliveries card, and RMAs/RTVs on the Returns page.
+2. The document opens in a new tab on shared letterhead (your organisation's name, structured address, and VAT number from Settings) and the print dialog opens itself. Pick lists and job lists print from the Despatch Station as before.
+3. What prints is the record as booked: invoice and credit totals come from the stored document (penny-exact), despatch notes carry no prices (they travel with the goods), and the GRN shows what actually arrived, batches included.
+
 ### How do I rename statuses or change document numbering?
 
 1. `Settings`: set a prefix per document type (new documents only, existing references never change) and rename any status label. Labels are display-only, so "Held order" can replace "Draft" without any integration noticing.

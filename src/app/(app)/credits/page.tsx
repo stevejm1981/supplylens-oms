@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Undo2 } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { PrintLink } from "@/components/print-link";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
@@ -63,7 +64,8 @@ export default async function CreditsPage() {
                   <TableHead>Reason</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Net</TableHead>
-                  <TableHead className="pr-6 text-right">Gross</TableHead>
+                  <TableHead className="text-right">Gross</TableHead>
+                  <TableHead className="pr-6 text-right">Print</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -101,8 +103,13 @@ export default async function CreditsPage() {
                     <TableCell className="text-right tabular-nums">
                       −{formatPence(c.netPence)}
                     </TableCell>
-                    <TableCell className="pr-6 text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums">
                       −{formatPence(c.grossPence)}
+                    </TableCell>
+                    <TableCell className="pr-6">
+                      <div className="flex justify-end">
+                        <PrintLink href={`/print/credit-note/${c.id}`} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -115,7 +122,7 @@ export default async function CreditsPage() {
                   <TableCell className="text-right tabular-nums">
                     −{formatPence(totals.net)}
                   </TableCell>
-                  <TableCell className="pr-6 text-right font-semibold tabular-nums">
+                  <TableCell className="pr-6 text-right font-semibold tabular-nums" colSpan={2}>
                     −{formatPence(totals.gross)}
                   </TableCell>
                 </TableRow>

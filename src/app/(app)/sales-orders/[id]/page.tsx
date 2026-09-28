@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { asAddress, formatAddress } from "@/lib/address";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
+import { PrintLink } from "@/components/print-link";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -161,6 +162,7 @@ export default async function SalesOrderPage({
           </Badge>
         ) : null}
         {order.status !== "DRAFT" ? <StatusBadge status={fulfilment} /> : null}
+        <PrintLink href={`/print/sales-order/${order.id}`} label="Print" />
         <SoActions
           id={order.id}
           status={order.status}
@@ -529,7 +531,8 @@ export default async function SalesOrderPage({
                         {d.trackingNumber ?? ", "}
                       </TableCell>
                       <TableCell className="pr-6">
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-1">
+                          <PrintLink href={`/print/despatch-note/${d.id}`} />
                           <DespatchRowActions
                             despatch={{
                               id: d.id,

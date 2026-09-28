@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Truck } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { PrintLink } from "@/components/print-link";
 import { carriageStatus, effectiveCarriagePence } from "@/lib/engine/carriage";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
@@ -67,7 +68,8 @@ export default async function DespatchesPage() {
                   <TableHead>Service</TableHead>
                   <TableHead>Tracking</TableHead>
                   <TableHead>Carriage</TableHead>
-                  <TableHead className="pr-6">Despatched</TableHead>
+                  <TableHead>Despatched</TableHead>
+                  <TableHead className="pr-6 text-right">Print</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -122,8 +124,13 @@ export default async function DespatchesPage() {
                         );
                       })()}
                     </TableCell>
-                    <TableCell className="pr-6 tabular-nums text-muted-foreground">
+                    <TableCell className="tabular-nums text-muted-foreground">
                       {d.despatchedAt ? dateFmt.format(d.despatchedAt) : ", "}
+                    </TableCell>
+                    <TableCell className="pr-6">
+                      <div className="flex justify-end">
+                        <PrintLink href={`/print/despatch-note/${d.id}`} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

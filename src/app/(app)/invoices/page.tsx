@@ -6,6 +6,7 @@ import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
+import { PrintLink } from "@/components/print-link";
 import { PaidButton } from "./paid-button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -116,6 +117,7 @@ export default async function InvoicesPage() {
                           </span>
                         ) : null}
                         <PaidButton id={inv.id} paid={Boolean(inv.paidAt)} />
+                        <PrintLink href={`/print/invoice/${inv.id}`} />
                       </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">

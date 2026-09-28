@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { landedUnitCostPence } from "@/lib/engine/landed-cost";
 import { formatPence } from "@/lib/money";
 import { PageHeader } from "@/components/page-header";
+import { PrintLink } from "@/components/print-link";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -97,6 +98,7 @@ export default async function PurchaseOrderPage({
         description={`${po.supplier.name}${po.containerRef ? ` · Container ${po.containerRef}` : ""}`}
       >
         <StatusBadge status={po.status} />
+        <PrintLink href={`/print/purchase-order/${po.id}`} label="Print" />
         <PoActions id={po.id} status={po.status} warehouses={warehouses} />
       </PageHeader>
 
@@ -222,6 +224,7 @@ export default async function PurchaseOrderPage({
                 {po.receipts.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-semibold">{r.reference}</span>
+                    <PrintLink href={`/print/goods-receipt/${r.id}`} />
                     <span className="text-xs text-muted-foreground">
                       {dateFmt.format(r.receivedAt)} · {r.warehouse.name}
                       {r.source === "API" ? " · via API" : ""}
